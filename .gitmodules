@@ -1,0 +1,6 @@
+[submodule "vendor/megamek"]
+	path = vendor/megamek
+	url = https://github.com/MegaMek/megamek.git
+[submodule "vendor/mm-data"]
+	path = vendor/mm-data
+	url = https://github.com/MegaMek/mm-data.git
