@@ -57,29 +57,28 @@ Zuschauer). Für "zwei Spieler, zwei MegaMek-Clients" (Abnahmekriterium) werden
 zwei Desktop-Clients das auch täten. Das hält die Bridge selbst zustandslos
 bezüglich "wie viele Spieler", was Testen/Deployment vereinfacht.
 
-## 5. MegaMek-Server im Docker-Compose: offizielles Release-Artefakt, nicht In-Container-Gradle-Build
+## 5. MegaMek-Server im Docker-Compose: aus Quellcode gebaut (Multi-Stage-Dockerfile), nicht aus einem Release-Artefakt
 
-Der dedizierte Server läuft im Docker-Setup aus dem offiziellen MegaMek-Release
-(`MegaMek-<version>.zip` von GitHub Releases, per Dockerfile heruntergeladen
-und mit `startServer.sh` / `-dedicated`-Flag gestartet), **nicht** aus einem
-In-Container-Gradle-Build von `vendor/megamek`. Begründung: Der Server soll per
-Auftrag "unverändert" laufen — das offizielle, von MegaMek selbst gebaute und
-getestete Artefakt ist die getreueste Umsetzung von "unverändert", und erspart
-den ~1,7 GB großen `mm-data`-Sync sowie lange Gradle-Buildzeiten im
-Server-Image. Die Bridge dagegen *muss* MegaMeks Java-Quellcode als
-Compile-Dependency einbinden (Auftrag: "bestehende Client-Klassen
-wiederverwenden") und wird daher aus `vendor/megamek` heraus gebaut (Gradle
-Composite Build) — dort ist ein Sourcecode-Build unumgänglich.
+Ursprünglich war geplant, den dedizierten Server aus dem offiziellen
+MegaMek-Release-Zip zu ziehen (kein eigener Gradle-Build im Server-Image
+nötig). Das setzt aber einen Release-Tag voraus, der dieselbe MegaMek-Version
+spricht wie die Bridge — sonst lehnt `SERVER_VERSION_CHECK` die
+Bridge-Verbindung ab (siehe `docs/protocol-notes.md`). Da `HeadlessClient`
+(worauf die Bridge aufbaut, siehe Entscheidung 1) zum Recherchezeitpunkt nur
+auf `master` existiert und in keinem Release-Tag enthalten ist, gibt es kein
+passendes Release-Artefakt. `docker/megamek-server/Dockerfile` baut den
+Server daher **ebenfalls per Multi-Stage-Build aus `vendor/megamek`-Quellcode**
+(`./gradlew :megamek:installDist`, derselbe Submodule-Commit wie die Bridge)
+— das ist die einzige Möglichkeit, garantiert dieselbe Version wie die Bridge
+zu haben, und bleibt trotzdem "unverändert" im Sinne des Auftrags: kein
+einziges MegaMek-Quellfile wird angefasst, nur kompiliert. Sobald ein
+offizieller Release-Tag mit `HeadlessClient` erscheint, kann auf das
+schnellere Release-Zip umgestellt werden (Kompromiss im Dockerfile
+kommentiert).
 
-**Versionskopplung**: Das Server-Release im Dockerfile und der
-`vendor/megamek`-Submodule-Commit müssen dieselbe MegaMek-Version sprechen
-(siehe Protokoll-Notiz zu `SERVER_VERSION_CHECK` — bei Mismatch verweigert der
-Server die Verbindung). Solange kein passender Release-Tag mit
-`HeadlessClient` existiert (siehe Entscheidung 1), wird das Server-Image daher
-**ebenfalls aus `vendor/megamek`-Quellcode gebaut** (Multi-Stage-Dockerfile),
-bis ein offizieller Release-Tag verfügbar ist, der zu unserem Submodule-Commit
-passt — dann kann auf das schnellere Release-Zip umgestellt werden. Dieser
-Kompromiss ist in `docker/megamek-server/Dockerfile` kommentiert.
+Das Server-Image *braucht* die echten `mm-data`-Inhalte zur Laufzeit (Karten,
+Einheiten-Definitionen) und stößt sie über `installDist`s volle Sync-Tasks an
+— anders als die Bridge (siehe Entscheidung 10).
 
 ## 6. Flutter State-Management: Riverpod
 
@@ -98,10 +97,75 @@ Spalten-Offsets, `Coords`-Klasse) ist speziell genug, dass ein generisches
 Hex-Paket keine Zeit sparen würde, und wir behalten volle Kontrolle über
 Pan/Zoom-Performance und Tap-Hit-Testing gegen Server-Koordinaten.
 
-## 8. Kommunikationsprotokoll Bridge↔Mobile: WebSocket, ein Kanal, JSON-Envelope
+## 9. Repo-Root-Gradle-Wrapper auf Gradle 9.4.1 gepinnt (nicht die vorinstallierte 8.14.3)
 
-Ein einziger WebSocket (`/ws?player=<name>`) statt REST+Polling: passt zum
+`vendor/megamek/gradle/wrapper/gradle-wrapper.properties` verlangt Gradle 9.4.1
+(Palantir-git-version-, Launch4j- und Sentry-Gradle-Plugins in der dort
+verwendeten Version brauchen dessen APIs). Ein Composite Build (unser
+Root-`settings.gradle` mit `includeBuild('vendor/megamek')`) läuft immer mit
+**einer** Gradle-Version für den gesamten Build, bestimmt vom Root-Wrapper —
+die 8.14.3, die in diesem Environment vorinstalliert war, reicht dafür nicht.
+Deshalb wurde am Repo-Root ein eigener Wrapper auf 9.4.1 erzeugt
+(`./gradlew wrapper --gradle-version 9.4.1`, ausgeführt mit der von MegaMeks
+eigenem Wrapper-Download bereits vorhandenen Distribution). Build-Befehle im
+gesamten Projekt gehen über dieses Root-`./gradlew`, nie über ein
+`vendor/megamek/gradlew` direkt.
+
+## 10. Megamek-Server-Docker-Image: verifiziert, dass `mm-data`-Sync-Tasks nicht am Compile-Pfad hängen
+
+Während der Bridge-Implementierung wurde geprüft, dass `:megamek:megamek:jar`
+(und damit `:bridge:compileJava`) erfolgreich durchläuft, **ohne** dass
+`mm-data`s Sync-Tasks (`stageDataFiles` etc., siehe Entscheidung 5) je
+ausgeführt werden — `processResources` hängt nicht daran. Für die Bridge
+selbst (die nur Netzwerk-/Modellklassen braucht, keine Mek-/Kartendaten)
+genügt daher ein `vendor/mm-data`-Submodule-Checkout ohne besondere
+Sparse-Checkout-Behandlung; der Server (Entscheidung 5) braucht die echten
+Daten dagegen zur Laufzeit (Karten, Einheiten) und bekommt sie über
+`installDist`, das die vollen Sync-Tasks anstößt.
+
+## 12. Bekannte Eigenheit: MegaMeks Server-Konsolen-Log wirkt "eingefroren", ist es aber nicht
+
+Beim manuellen Testen von `bin/megamek -dedicated -port ...` (sowohl über
+`gradle run` als auch direkt) erscheinen nach den ersten vier
+Log4j-Initialisierungszeilen minutenlang **keine weiteren Konsolenzeilen**,
+obwohl der Server in Wahrheit bereits vollständig hochgefahren ist und Port
+2346 sofort TCP-Verbindungen annimmt (mit `jstack` verifiziert: der
+"Connection Listener"-Thread steckt in `ServerSocket.accept()`, der Server
+wartet also aktiv auf Clients). Alle weiteren Log-Zeilen (inkl. der
+erwarteten "s: listening for clients...") erscheinen erst gebündelt beim
+Prozessende. Das liegt an MegaMeks eigener `mmconf/log4j2.xml`-Konfiguration
+(deren `bufferSize is set to 8192 but bufferedIO is not true`-Warnung schon
+auf eine Inkonsistenz hindeutet), nicht an der Bridge oder am Docker-Setup.
+
+**Konsequenz**: Ein leeres/wirkendes-eingefrorenes `docker logs
+megamek-server` unmittelbar nach dem Start ist normal und kein Fehlersignal
+— den tatsächlichen Serverstatus per TCP-Verbindungsversuch prüfen
+(`nc -z localhost 2346` bzw. der Bridge-eigene Connect-Versuch), nicht per
+Log-Beobachtung.
+
+## 11. UTF-8-Locale ist Pflicht zum Bauen (`LANG=C.UTF-8`)
+
+`vendor/mm-data` enthält mindestens einen nicht-ASCII-Dateinamen
+(`data/images/units/meks/Götterdämmerung.png`). Läuft Gradle/JVM unter einer
+POSIX/C-Locale ohne UTF-8 (`sun.jnu.encoding` fällt dann auf ASCII zurück),
+kann `stageDataImages` diese Datei nicht einmal hashen ("No such file or
+directory", obwohl die Datei existiert — nur ihr Name wird falsch dekodiert).
+Getroffen und reproduziert während der Entwicklung in einer Umgebung mit
+`LANG=` (leer)/`LC_ALL=` (leer). Fix: `LANG=C.UTF-8 LC_ALL=C.UTF-8` vor jedem
+Gradle-Aufruf, der `vendor/mm-data` anfasst (im Server-Dockerfile per `ENV`
+gesetzt; lokal einmalig exportieren oder der Shell-Umgebung hinzufügen).
+
+## 8. Kommunikationsprotokoll Bridge↔Mobile: ein WebSocket-Kanal, flache JSON-Nachrichten
+
+Ein einziger WebSocket (`/ws`) statt REST+Polling: passt zum
 Server-Push-Charakter des Spiels (Server treibt Zustandsänderungen,
-Mobile-Client reagiert). Envelope: `{"type": "...", "schemaVersion": 1, "payload": {...}}`.
-REST bleibt nur für zustandslose Dinge (`GET /health`, `GET /games` für die
-Lobby-Übersicht vor dem WebSocket-Connect).
+Mobile-Client reagiert). Jede Nachricht ist ein **flaches** JSON-Objekt mit
+`"type"` und `"schemaVersion"` auf oberster Ebene (kein verschachteltes
+`payload`-Feld — einfacher in Jackson-Records abzubilden und einfacher im
+Dart-Client zu parsen). Siehe `bridge/README.md` für alle Nachrichtentypen.
+REST bleibt nur für zustandslose Dinge (`GET /health`). Es gibt bewusst
+**keinen** `/games`-Lobby-Endpunkt: ein Bridge-Prozess bedient genau einen
+MegaMek-Server/Player-Slot (Entscheidung 4) und verbindet sich beim Start
+automatisch — die Mobile-App wählt "welcher Server" über Host/Port der
+*Bridge* selbst (Connect-Screen, Phase 2), nicht über eine von der Bridge
+angebotene Serverliste.

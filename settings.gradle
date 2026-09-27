@@ -1,0 +1,17 @@
+rootProject.name = 'megamek-mobile'
+
+// vendor/megamek is a read-only git submodule (see docs/decisions.md #1).
+// Its own settings.gradle in turn does includeBuild('../mm-data'), which
+// resolves to vendor/mm-data because both submodules are checked out as
+// siblings - exactly the layout MegaMek's own repo expects.
+includeBuild('vendor/megamek') {
+    dependencySubstitution {
+        // Explicit, version-independent substitution: the bridge depends on
+        // "org.megamek:megamek" (see bridge/build.gradle) and Gradle resolves
+        // it against the :megamek subproject of the included build, instead
+        // of trying (and failing) to fetch it from a Maven repository.
+        substitute(module('org.megamek:megamek')).using(project(':megamek'))
+    }
+}
+
+include('bridge')

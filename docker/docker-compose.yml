@@ -1,0 +1,43 @@
+services:
+  megamek-server:
+    build:
+      context: ..
+      dockerfile: docker/megamek-server/Dockerfile
+    ports:
+      - "2346:2346"
+    restart: unless-stopped
+
+  bridge:
+    build:
+      context: ..
+      dockerfile: docker/bridge/Dockerfile
+    depends_on:
+      - megamek-server
+    environment:
+      MEGAMEK_HOST: megamek-server
+      MEGAMEK_PORT: "2346"
+      PLAYER_NAME: Pilot1
+      BRIDGE_PORT: "8080"
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  # Template for a second player connecting to the same MegaMek server through
+  # its own bridge instance (see docs/decisions.md #4: one bridge process per
+  # player slot). Copy/uncomment and adjust PLAYER_NAME/BRIDGE_PORT/host port
+  # for each additional player.
+  #
+  # bridge-player2:
+  #   build:
+  #     context: ..
+  #     dockerfile: docker/bridge/Dockerfile
+  #   depends_on:
+  #     - megamek-server
+  #   environment:
+  #     MEGAMEK_HOST: megamek-server
+  #     MEGAMEK_PORT: "2346"
+  #     PLAYER_NAME: Pilot2
+  #     BRIDGE_PORT: "8080"
+  #   ports:
+  #     - "8081:8080"
+  #   restart: unless-stopped

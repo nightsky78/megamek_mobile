@@ -62,7 +62,7 @@ IClient (Interface)
 | `ROUND_UPDATE` | S→C | `state.round` |
 | `CHAT` | beide | `chat.message` |
 | `PLAYER_READY` (`sendDone`) | C→S | Aktion `action.end_phase` / `action.set_ready` |
-| `Client.moveEntity(id, MovePath)` (baut `ENTITY_MOVE`) | C→S | Aktion `action.move` (Zielhex-Liste → `MovePath` mit `MoveStepType.FORWARD`/`BACKWARD`/`TURN_LEFT`/`TURN_RIGHT`) |
+| `Client.moveEntity(id, MovePath)` (baut `ENTITY_MOVE`) | C→S | Aktion `action.move` (Schritt-Liste → `MovePath` mit `MoveStepType.FORWARDS`/`BACKWARDS`/`TURN_LEFT`/`TURN_RIGHT`/`LATERAL_LEFT`/`LATERAL_RIGHT`) |
 | `Client.sendAttackData(aen, Vector<EntityAction>)` mit `WeaponAttackAction(entityId, targetId, weaponId)` | C→S | Aktion `action.attack` (Zieleinheit + Waffen-IDs) |
 | `SENDING_REPORTS*` | S→C | `state.log` (Textreports, z. B. Trefferergebnisse) — im MVP nur durchgereicht, nicht strukturiert geparst |
 | `GAME_VICTORY_EVENT` / `changePhase(VICTORY)` | S→C | `state.phase = VICTORY` + `event.game_over` |

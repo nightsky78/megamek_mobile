@@ -1,0 +1,7 @@
+.git
+mobile
+docs
+build
+.gradle
+*.md
+!bridge/README.md

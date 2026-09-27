@@ -1,0 +1,57 @@
+plugins {
+    id 'application'
+    id 'java'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Reuses MegaMek's Client/HeadlessClient/Game/Entity classes directly
+    // instead of reimplementing the game protocol (see docs/protocol-notes.md).
+    // Resolved against vendor/megamek via the dependencySubstitution in the
+    // root settings.gradle, not from a Maven repository.
+    implementation 'org.megamek:megamek'
+
+    implementation 'io.javalin:javalin:6.7.0'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.18.2'
+
+    implementation 'org.apache.logging.log4j:log4j-api:2.24.3'
+    implementation 'org.apache.logging.log4j:log4j-core:2.24.3'
+    implementation 'org.apache.logging.log4j:log4j-slf4j2-impl:2.24.3'
+    implementation 'org.slf4j:slf4j-api:2.0.16'
+
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+application {
+    mainClass = 'megamek.mobile.bridge.BridgeApplication'
+    // Needed at runtime by MegaMek's own classes (XStream/reflection over the
+    // JDK's internal collection types), mirrored from vendor/megamek/megamek/build.gradle
+    // ("mmJvmOptions") since we don't reuse that script directly.
+    applicationDefaultJvmArgs = [
+        '--add-opens', 'java.base/java.util=ALL-UNNAMED',
+        '--add-opens', 'java.base/java.lang=ALL-UNNAMED'
+    ]
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    // Lets Jackson read record component names via reflection (e.g. ActionMessage)
+    // without needing jackson-module-parameter-names as an extra dependency.
+    options.compilerArgs << '-parameters'
+}

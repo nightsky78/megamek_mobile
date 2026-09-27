@@ -1,0 +1,17 @@
+# Gradle / Java
+.gradle/
+build/
+out/
+*.class
+!gradle/wrapper/gradle-wrapper.jar
+
+# Flutter / Dart: mobile/ has its own generated .gitignore (flutter create)
+# that covers .dart_tool/, build/, plugin registration files etc.
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
