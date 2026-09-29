@@ -32,8 +32,8 @@ dart format .
 | `lib/core/net/bridge_client.dart` | The one WebSocket connection to the bridge |
 | `lib/state/` | Riverpod `Notifier`s: `gameSessionProvider` (connection + snapshot + chat), `selectedUnitIdProvider` |
 | `lib/features/connect/` | Host/port entry screen (portrait) |
-| `lib/features/lobby/` | Player list, ready toggle, chat (portrait) |
-| `lib/features/game/` | Hex map (`hex_geometry.dart` + `hex_map_painter.dart`), phase bar, minimap, unit action panel (bottom sheet/bar), unit list and chat sheets (landscape-preferred) |
+| `lib/features/lobby/` | Lobby setup (portrait): player/team list, force panel (add/remove units, edit pilots, BV), mech catalog sheet with filters, bot setup (difficulty, own units, team), map browser (grouped by folder, filter), chat |
+| `lib/features/game/` | Hex map (`hex_geometry.dart` + `hex_map_painter.dart`), phase bar with Continue, minimap, turn panels (`turn_panels.dart`: deploy, move with envelope/path preview/jump, fire with to-hit list, physical), unit detail sheet, combat log (`reports_sheet.dart`), victory overlay with New game |
 | `lib/theme/` | Dark, touch-first `ThemeData` (Phase 3) |
 
 `HomeShell` (`lib/app.dart`) picks Connect/Lobby/Game purely from
@@ -59,8 +59,9 @@ bridge's own state already determines which screen makes sense (see
 - Single board only: `GameStateSnapshot.boards` can carry more than one
   (e.g. multi-level maps), but the UI currently always renders
   `boards.first`.
-- Movement is step-button based, not tap-a-destination-hex pathfinding (see
-  the doc comment on `UnitActionPanel`: computing a legal path is BattleTech
-  rules logic, which this app leaves to the MegaMek server).
-- No offline/reconnect handling: a dropped WebSocket requires reconnecting
-  from the Connect screen.
+- Movement is tap-a-destination: the bridge computes the reachable hexes and
+  the path with MegaMek's own path finder; the app contains no rules logic.
+- A dropped WebSocket shows a reconnect banner and reconnects with backoff. If
+  the bridge itself restarts mid-game, the player slot is lost and the app
+  lands in the lobby.
+- Charge/DFA, torso twist, hidden units and minefields are not exposed.

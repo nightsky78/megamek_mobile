@@ -93,9 +93,20 @@ Every message is a flat JSON object with `"type"` and `"schemaVersion"` fields
     ]}
   ],
   "availableBoards": ["AGoAC Base", "Sample Boards/CraterCityDay1"],
-  "selectedBoards": ["AGoAC Base"]
+  "selectedBoards": ["AGoAC Base"],
+  "turnPlayerId": 1,
+  "myTurn": true,
+  "actableEntityIds": [42],
+  "result": null
 }
 ```
+`turnPlayerId`/`myTurn`/`actableEntityIds` say whose move it is and which of the local
+player's units may act. `result` is only set in `VICTORY`:
+`{"winnerPlayerId": -1, "winnerTeam": 2, "localWon": false, "summary": "Winner: team 2"}`.
+`EntityDto` additionally carries `tons`, `bv`, `unitType`, `piloting`, `heat`, `heatCapacity`,
+`walkMp`/`runMp`/`jumpMp`, `prone`/`shutDown`/`immobile`/`deployed`, `locations[]`
+(armor/internal per location), `ammo[]` and `damagedEquipment[]`. Undeployed units have
+`x = y = -1`.
 `phase` is the name of a `megamek.common.enums.GamePhase` constant (`LOUNGE`,
 `DEPLOYMENT`, `MOVEMENT`, `FIRING`, `PHYSICAL`, `END`, `VICTORY`, ...).
 
@@ -196,6 +207,37 @@ at all).
 {"type": "action.unit_catalog_search", "text": "atlas", "clanOnly": false, "minTons": 50, "maxTons": 100, "limit": 50}
 ```
 
+**`action.add_bot`** also accepts `difficulty`: `easy`, `normal`, `hard` or `berserk`.
+
+**Turn loop actions** (replies go only to the requesting client, unless noted):
+
+| Action | Fields | Reply / effect |
+|---|---|---|
+| `action.deploy_options` | `entityId` | `state.deploy_options` `{entityId, hexes:[{x,y}]}` |
+| `action.deploy` | `entityId, x, y, facing` | `Client.deploy`; snapshot broadcast |
+| `action.move_options` | `entityId, mode` (`WALK`/`RUN`/`JUMP`/`BACKWARDS`) | `state.move_options` `{walkMp, runMp, jumpMp, hexes:[{x,y,mp}]}` |
+| `action.move_preview` | `entityId, mode, x, y, facing?` | `state.move_preview` `{legal, mpUsed, facing, path, message}` |
+| `action.move_to` | as preview; no `x`/`y` = stand still / turn only | sends the move |
+| `action.attack_options` / `action.physical_options` | `entityId, targetId` | `state.attack_options` `{range, options:[{key, name, toHit, probability, description, damage, heat, possible}]}` |
+| `action.attack` | `entityId, targetId, weaponIds` (empty = skip) | `sendAttackData` |
+| `action.physical` | `entityId, targetId?, kind?` (`PUNCH_LEFT`/`PUNCH_RIGHT`/`KICK`); no target = skip | physical attack |
+| `action.remove_unit` | `entityId` | removes from whichever client owns it |
+| `action.set_pilot` | `entityId, gunnery?, piloting?` | edits the crew |
+| `action.set_team` | `team, botName?` | team of the local player or a bot |
+| `action.new_game` | - | after `VICTORY`: sends `/reset <server password>`; the server returns to the lobby (bots disconnect and must be re-added) |
+| `action.ping` | - | keep-alive; no reply needed |
+
+Report phases (`*_REPORT`) wait for `action.end_phase` (Continue). The bridge answers
+`CFR_*` client-feedback requests itself (see Known limitations). The server password
+(`--server-password=` / `SERVER_PASSWORD`) is only needed for `action.new_game`.
+
+**`state.report`** (broadcast): `{"type": "state.report", "round": 1, "phase": "FIRING_REPORT", "text": "Weapons fire for ..."}` - the server's
+game report as plain text, one message per report chunk.
+
+`action.unit_catalog_search` additionally takes `minYear`, `maxYear`, `minBv`, `maxBv`,
+`techBase` (`Inner Sphere`/`Clan`) and `unitType` (`Mek`, `Tank`, `BattleArmor`, `Infantry`,
+`ProtoMek`, `VTOL`, `Naval`).
+
 #### `state.unit_catalog`
 
 Reply to one client's `action.unit_catalog_search` (see `megamekmobile.bridge.dto.UnitCatalogMessage`).
@@ -225,7 +267,12 @@ test → `docs/protocol-notes.md` entry → schema version bump if breaking).
   the documented follow-up is to only re-send `boards` when a
   `gameBoardNew`/`gameBoardChanged` event actually fires, and to diff
   `entities`/`players` instead of resending them whole.
-- No reconnect/session resumption: if a mobile client's WebSocket drops, it
-  simply reconnects and receives a fresh full snapshot; no action queue.
-- `CFR_*` client-feedback-request packets (AMS assignment, TAG target
-  selection, etc.) are not answered by the bridge.
+- No session resumption on the bridge: if a mobile client's WebSocket drops, it
+  reconnects (the app does this with backoff) and receives a fresh full snapshot;
+  there is no action queue.
+- `CFR_*` client-feedback requests are auto-answered with safe defaults (no user choice yet).
+- One bridge process = one player slot; if the bridge restarts mid-game the player slot is
+  lost and the app lands in the lobby again.
+- Don't rebuild `vendor/megamek`'s `MegaMek.jar` (e.g. another Gradle build) while the bridge
+  runs via `./gradlew :bridge:run`; the bot threads then fail with `NoClassDefFoundError`.
+  Restart the bridge afterwards.

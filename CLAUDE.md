@@ -122,48 +122,40 @@ Wird nach jeder Phase aktualisiert.
   (`flutter create . --platforms ios,android`); im Sandbox-Container ohne
   Gerät/Emulator stattdessen per Web-Build + headless Chromium visuell
   verifiziert (Screenshot des Connect-Screens im Chat).
-- **Phase 3 (UI/UX)**: abgeschlossen (von Anfang an mitgebaut, siehe
-  `mobile/README.md`): Bottom-Sheets für Einheitenliste/Chat statt
-  Nebeneinander-Panels, kontextsensitiver Bottom-Action-Panel statt
-  Rechtsklick-Menüs, Minimap-Overlay, Landscape bevorzugt für die Karte /
-  Portrait für Connect+Lobby (`SystemChrome.setPreferredOrientations` in
-  `HomeShell`), eigenes dunkles Touch-Theme mit >=44pt-Zielen
-  (`lib/theme/app_theme.dart`).
+- **Phase 3 (UI/UX)**: abgeschlossen (siehe `mobile/README.md`): Bottom-Sheets,
+  kontextsensitive Bottom-Panels, Minimap, Landscape für die Karte, dunkles
+  Touch-Theme (`lib/theme/app_theme.dart`).
+- **Phase 4-6 (MVP-Umfang, siehe `docs/roadmap.md`)**: abgeschlossen.
+  Bridge: `BridgeSession`/`BotManager`, Deployment-/Move-/Attack-/Physical-Aktionen
+  mit Optionen-Antworten, `state.report`, Snapshot mit Zug-Info/Ergebnis/Heat/
+  Trefferzonen, automatische `CFR_*`-Antworten, Force-Verwaltung, `action.new_game`
+  (`/reset <server-password>`, daher `--server-password`). Mobile: kompletter
+  Lobby-Aufbau (Katalogfilter, Roster, Piloten, Bots mit Schwierigkeit, Karten-
+  browser), Deployment, Movement, Fire, Physical, Combat-Log, Sieg/Niederlage,
+  Reconnect. `flutter analyze` sauber, `flutter test` 42 Tests grün.
 
 ### Stand ggü. dem Abnahmekriterium
 
-Verifiziert in dieser Umgebung (kein Android/iOS-Gerät/Emulator verfügbar,
-daher kein manueller Vollrunden-Test mit zwei echten Mobile-Clients):
+Auf dem Android-Emulator gegen lokalen MegaMek-v0.51.0-Server + Bridge
+durchgespielt (Lobby -> Deployment -> mehrere Runden Move/Fire/Physical ->
+Niederlage-Overlay -> Neues Spiel; Reconnect nach Bridge-Neustart).
 
-- `vendor/megamek` + `vendor/mm-data` bauen und stagen ihre Daten
-  erfolgreich (`./gradlew :megamek:megamek:installDist`,
-  `:megamek:megamek:stageDataFiles`).
-- Der dedizierte Server (`bin/megamek -dedicated -port ...`, exakt der
-  Docker-`ENTRYPOINT`/`CMD`) startet und nimmt TCP-Verbindungen auf Port 2346
-  entgegen (mit `jstack` verifiziert: Connection-Listener-Thread in
-  `ServerSocket.accept()`; siehe `docs/decisions.md` #12 zur
-  Log-Ausgabe-Eigenheit dabei).
-- Die Bridge kompiliert und ihre Unit-Tests laufen grün gegen den echten
-  MegaMek-Sourcecode (`./gradlew :bridge:build`).
-- Die Flutter-App rendert fehlerfrei (Connect-Screen per Headless-Chromium-
-  Screenshot verifiziert, `flutter analyze`/`flutter test` grün).
+**Nicht** verifiziert: echtes Android-/iOS-Gerät (Touch, Pan/Zoom), zwei
+Mobile-Spieler gleichzeitig, `docker compose up`.
 
-**Nicht** in dieser Umgebung verifiziert (fehlendes Android/iOS-Gerät bzw.
-kein Docker-Daemon-Zugriff für einen echten Compose-Hochlauf): ein
-tatsächlicher Ende-zu-Ende-Verbindungstest Bridge↔laufender MegaMek-Server
-über das echte Wire-Protokoll, sowie `docker compose up` selbst. Beides
-sollte auf einer Maschine mit Docker und einem Android/iOS-Zielgerät
-nachgeholt werden, bevor der MVP als vollständig abgenommen gilt.
+### Bekannte Einschränkungen
 
-### Bekannte Einschränkungen (gilt für den gesamten MVP)
-
-- Kein Aerospace-/Weltraumkampf, nur Bodengefechte (Meks/Vehicles/Infantry).
+- Kein Aerospace-/Weltraumkampf, nur Bodengefechte.
 - Kein Speichern/Laden von Spielständen über die App.
-- Deployment-Sonderfälle (Minefields, Hidden Units, Artillery-Auto-Hit,
-  Force-/C3-Netzwerke, Trailer/Train) werden von der Bridge nicht übersetzt.
-- Alle `CFR_*`-Client-Feedback-Requests (z. B. AMS-Zuweisung, TAG-Ziel) werden
-  in der Bridge nicht beantwortet — abhängig von Server-Timeout-Verhalten kann
-  das eine Runde blockieren, falls ein solcher Fall eintritt.
+- Nicht übersetzt: Minefields, Hidden Units, Artillery-Auto-Hit, Force-/C3-
+  Netzwerke, Trailer/Train, Charge/DFA, Torso-Twist.
+- `CFR_*`-Anfragen werden von der Bridge mit Standardwerten beantwortet (keine
+  Nutzerauswahl).
+- Nach `VICTORY` sterben die Bots; sie müssen in der neuen Lobby erneut
+  hinzugefügt werden.
+- Während die Bridge über `./gradlew :bridge:run` läuft, keine anderen
+  Gradle-Builds starten (überschreiben `MegaMek.jar`, dann `NoClassDefFoundError`).
+- Phase 7 (zentraler Server, PC-Client-Bridge) ist nur ein grober Entwurf.
 
 ## Konventionen
 

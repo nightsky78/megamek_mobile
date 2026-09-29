@@ -1,6 +1,6 @@
 # Roadmap: playable MVP → cross-platform multiplayer
 
-Status as of 2026-09-29. Continues the phase numbering in `CLAUDE.md` ("Bekannter
+Status as of 2026-09-29 (Phases 4-6 MVP implemented, see section 1). Continues the phase numbering in `CLAUDE.md` ("Bekannter
 Stand", Phases 0–3). Where this file and `CLAUDE.md` disagree, this file reflects what
 was actually verified end-to-end; `CLAUDE.md` is corrected in Phase 4.
 
@@ -8,30 +8,26 @@ was actually verified end-to-end; `CLAUDE.md` is corrected in Phase 4.
 
 ## 1. Where we are
 
-Verified end-to-end on an Android emulator ↔ bridge ↔ unmodified MegaMek v0.51.0
-dedicated server:
+Phases 4, 5 and the MVP items of Phase 6 (6.1, 6.2, 6.4, 6.8) are implemented. Verified
+on an Android emulator <-> bridge <-> unmodified MegaMek v0.51.0 dedicated server (2026-09-29):
+lobby setup (catalog filters, add/remove units, pilot edit, bot with difficulty and units,
+map browser), start, initiative report, deployment, movement (envelope, path preview),
+firing with to-hit list, combat log with real damage resolution, physical attack, several
+rounds against Princess, victory/defeat overlay, New game back to the lobby, and reconnect
+after a bridge restart.
 
 | Area | State |
 |---|---|
-| Connect, lobby, chat | Works |
-| Mech catalog (~11,000 units, search), add to own roster | Works — UI exposes text search only |
-| Princess bot: add bot, give it mechs | Works — default behavior only |
-| Map selection (one board from the server's list) | Works — flat, unsorted list of hundreds of boards |
-| Start game → server runs its phases | Works |
-| Hex map with full terrain (woods, water, roads, bridges, buildings, pavement, rough/rubble, fire/smoke, …) + minimap | Works |
-| **Deployment** | Missing — no UI and no bridge action (tests placed units via a script) |
-| **Whose turn / which unit may act** | Missing — the snapshot carries no turn info |
-| Movement (step-button builder) | UI exists, never exercised end-to-end; no MP display, no jump, no path preview |
-| Firing (target + weapon picker) | UI exists, never exercised end-to-end; no to-hit numbers |
-| **Physical attacks** | Missing |
-| **Combat log / reports** | Missing — the player can't see what hit what |
-| **Heat, ammo, per-location damage, crits, MP** | Missing from `EntityDto` |
-| `CFR_*` client feedback requests | Not answered — can stall a round |
-| **Victory / end of game** | Not handled in the UI |
-| **Connection loss** | App doesn't notice a closed socket and has no reconnect |
-| Map pan/zoom | Didn't respond to adb-simulated swipes — unverified on real touch |
-
-Bold rows block a complete game.
+| Connect, lobby, chat, reconnect | Works |
+| Mech catalog with filters, force management, pilots, BV | Works |
+| Bot (difficulty, units, team), map browser | Works |
+| Deployment, turn awareness, movement, firing, physical | Works (emulator) |
+| Combat log, unit detail (heat, ammo, per-location damage) | Works |
+| `CFR_*` requests | Auto-answered with defaults |
+| Victory / defeat, New game (`/reset`) | Works |
+| Not verified | Real phone/touch (pan/zoom, ergonomics), iPhone, two mobile players, `docker compose up` |
+| Known polish items | Phase title truncates next to the Continue button; portrait bottom panel covers part of the map; zoom resets between phases |
+| Not in MVP | 6.3 random lance, 6.5 map preview, 6.6 generated map, 6.7 multi-board maps; charge/DFA, torso twist |
 
 ---
 
@@ -191,10 +187,8 @@ vs. a native binary; where bots run; whether browser players are in scope.
 
 ## 9. Risks and unknowns
 
-- **Movement and attacks have never run end-to-end.** `MovePath` built from step names may
-  need compilation or validation the bridge doesn't do. Verify at the start of Phase 5.
 - **Pan/zoom** may be an adb-input artifact or a real bug — resolve on a real device (4.4).
-- **Unanswered `CFR_*` requests** can stall rounds; how often depends on units and options.
+- **`CFR_*` auto-answers** use defaults; unusual units (AMS, TAG, artillery) are untested.
 - **iOS** hasn't been built at all; needs macOS/Xcode and signing.
 - **Board previews** need MegaMek data files on the bridge host — fine next to a standard
   install, needs a design for a central hosted service.

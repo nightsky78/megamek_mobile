@@ -83,13 +83,20 @@ IClient (Interface)
 | `Client.sendDone(true)` auf dem Human-`Client` **und** jedem Bot-`Client` | C→S | Aktion `action.start_game` (kein eigenes Server-Packet — der Server wechselt selbst LOUNGE→DEPLOYMENT, sobald alle bereit sind und mindestens eine Entity existiert) |
 | `MekSummaryCache.getAllMeks()` (lokal, kein Server-Roundtrip) | — | Aktion `action.unit_catalog_search` → Antwort `state.unit_catalog` (nur an den anfragenden Client, kein Broadcast) |
 
+| `Board.isLegalDeployment` / `Client.deploy(...)` | C→S | `action.deploy_options` → `state.deploy_options`; `action.deploy` |
+| `MovePath`-Berechnung (`Pathfinder`, `MoveStep`) + `Client.moveEntity` | C→S | `action.move_options` → `state.move_options`; `action.move_preview` → `state.move_preview`; `action.move_to` (ersetzt den Schritt-Builder `action.move`) |
+| `WeaponAttackAction.toHit`, `PunchAttackAction`/`KickAttackAction`, `Client.sendAttackData` | C→S | `action.attack_options`/`action.physical_options` → `state.attack_options`; `action.attack`; `action.physical` |
+| `GameReportEvent` (`ReportDisplay`-Text) | S→C | `state.report` (Klartext je Report-Chunk, Broadcast) |
+| `Client.sendDeleteEntity`, `Client.sendUpdateEntity` (Pilot), `Client.sendPlayerInfo` (Team) | C→S | `action.remove_unit`, `action.set_pilot`, `action.set_team` |
+| `/reset <serverPassword>` (Chat-Kommando, `ResetCommand`) | C→S | `action.new_game` (nach `VICTORY` zurück in die Lobby) |
+| `CFR_*` (Client-Feedback-Requests) | S→C | von der Bridge automatisch mit Standardwerten beantwortet |
+
 ## Bewusst NICHT im MVP abgebildet (siehe CLAUDE.md "Bekannter Stand")
 
 - Deployment-Detailoptionen (Minefields, Hidden Units, Artillery-Auto-Hit-Hexes)
 - Force-/C3-Netzwerke, Schlepp-/Trailer-Mechanik (`ENTITY_BUILD_TRAIN`), Nova-CEWS
-- Alle `CFR_*`-Packets (Client-Feedback-Requests wie AMS-Zuweisung, TAG-Ziel) —
-  werden serverseitig ggf. mit Default-Antwort automatisch übersprungen; volle
-  Unterstützung ist Folgearbeit.
+- Nutzerentscheidung bei `CFR_*`-Packets (AMS-Zuweisung, TAG-Ziel): die Bridge
+  beantwortet sie automatisch mit Standardwerten.
 - Speichern/Laden (`SEND_SAVEGAME`/`LOAD_SAVEGAME`/`LOAD_GAME`)
 - Aerospace/Space-Combat-Packets (kein Nicht-Ziel-Bereich, siehe Auftrag)
 
