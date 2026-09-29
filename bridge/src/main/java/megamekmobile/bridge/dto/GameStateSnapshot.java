@@ -9,6 +9,10 @@ import java.util.List;
  * <p>The MVP always sends the whole snapshot rather than a diff - simpler to implement and reason about,
  * at the cost of some extra bandwidth on a large board. Diffing is a documented follow-up
  * (see CLAUDE.md "Bekannter Stand").</p>
+ *
+ * <p>{@code myTurn}/{@code actableEntityIds} say whether the bridge's player is expected to act right
+ * now and with which units; {@code turnPlayerId} is whoever the server is currently waiting for (null
+ * outside turn-based phases).</p>
  */
 public record GameStateSnapshot(
       String type,
@@ -20,7 +24,11 @@ public record GameStateSnapshot(
       List<EntityDto> entities,
       List<BoardDto> boards,
       List<String> availableBoards,
-      List<String> selectedBoards) {
+      List<String> selectedBoards,
+      Integer turnPlayerId,
+      boolean myTurn,
+      List<Integer> actableEntityIds,
+      GameResultDto result) {
 
     public static final String TYPE = "state.snapshot";
     public static final int SCHEMA_VERSION = 1;
@@ -33,8 +41,12 @@ public record GameStateSnapshot(
           List<EntityDto> entities,
           List<BoardDto> boards,
           List<String> availableBoards,
-          List<String> selectedBoards) {
+          List<String> selectedBoards,
+          Integer turnPlayerId,
+          boolean myTurn,
+          List<Integer> actableEntityIds,
+          GameResultDto result) {
         this(TYPE, SCHEMA_VERSION, phase, round, localPlayerId, players, entities, boards,
-              availableBoards, selectedBoards);
+              availableBoards, selectedBoards, turnPlayerId, myTurn, actableEntityIds, result);
     }
 }

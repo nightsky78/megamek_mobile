@@ -15,9 +15,9 @@ import megamek.common.loaders.MekSummaryCache;
 import megamek.logging.MMLogger;
 
 import megamekmobile.bridge.dto.ActionMessage;
+import megamekmobile.bridge.dto.ConnectionStatusMessage;
 import megamekmobile.bridge.dto.ErrorMessage;
-import megamekmobile.bridge.mapping.ActionHandler;
-import megamekmobile.bridge.mapping.GameStateMapper;
+import megamekmobile.bridge.dto.ReportMessage;
 import megamekmobile.bridge.mapping.UnitCatalogMapper;
 
 /**
@@ -29,15 +29,13 @@ public class BridgeServer {
 
     private static final MMLogger LOGGER = MMLogger.create(BridgeServer.class);
 
-    private final MegaMekBridgeClient client;
-    private final ActionHandler actionHandler;
+    private final BridgeSession session;
     private final ObjectMapper mapper = new ObjectMapper();
     private final Set<WsContext> sessions = ConcurrentHashMap.newKeySet();
     private Javalin app;
 
-    public BridgeServer(MegaMekBridgeClient client, BotManager botManager) {
-        this.client = client;
-        this.actionHandler = new ActionHandler(client, botManager);
+    public BridgeServer(BridgeSession session) {
+        this.session = session;
     }
 
     public void start(int port) {
@@ -53,6 +51,9 @@ public class BridgeServer {
                 sessions.add(ctx);
                 LOGGER.info("Mobile client connected ({} total)", sessions.size());
                 sendSnapshot(ctx);
+                for (ReportMessage report : session.reportLog()) {
+                    send(ctx, report);
+                }
             });
             ws.onClose(ctx -> {
                 sessions.remove(ctx);
@@ -82,7 +83,13 @@ public class BridgeServer {
                 send(ctx, UnitCatalogMapper.search(allUnits, message));
                 return;
             }
-            actionHandler.handle(message);
+            if (ActionMessage.PING.equals(message.type())) {
+                send(ctx, new ConnectionStatusMessage("alive", null));
+                return;
+            }
+            for (Object reply : session.actionHandler().handle(message)) {
+                send(ctx, reply);
+            }
         } catch (Exception e) {
             LOGGER.warn(e, "Failed to handle incoming action message");
             send(ctx, new ErrorMessage("Could not process message: " + e.getMessage()));
@@ -90,12 +97,12 @@ public class BridgeServer {
     }
 
     private void sendSnapshot(WsContext ctx) {
-        send(ctx, GameStateMapper.snapshot(client.getGame(), client.getLocalPlayerNumber()));
+        send(ctx, session.snapshot());
     }
 
     /** Rebuilds the full snapshot from the live game state and pushes it to every connected client. */
     public void broadcastSnapshot() {
-        broadcast(GameStateMapper.snapshot(client.getGame(), client.getLocalPlayerNumber()));
+        broadcast(session.snapshot());
     }
 
     public void broadcast(Object message) {

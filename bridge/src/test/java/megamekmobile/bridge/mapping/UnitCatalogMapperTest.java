@@ -34,7 +34,8 @@ class UnitCatalogMapperTest {
     private static ActionMessage query(String text, String unitType, Boolean clanOnly, Double minTons,
           Double maxTons, Integer limit) {
         return new ActionMessage(ActionMessage.UNIT_CATALOG_SEARCH, null, null, null, null, null, text, null,
-              null, null, unitType, clanOnly, minTons, maxTons, limit);
+              null, null, unitType, clanOnly, minTons, maxTons, limit, null, null, null, null, null, null, null,
+              null, null, null, null, null, null, null);
     }
 
     @Test

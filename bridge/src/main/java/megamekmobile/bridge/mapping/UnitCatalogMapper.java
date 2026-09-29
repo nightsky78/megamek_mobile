@@ -79,6 +79,22 @@ public final class UnitCatalogMapper {
         if (query.maxTons() != null && summary.getTons() > query.maxTons()) {
             return false;
         }
+        if (query.minYear() != null && summary.getYear() < query.minYear()) {
+            return false;
+        }
+        if (query.maxYear() != null && summary.getYear() > query.maxYear()) {
+            return false;
+        }
+        if (query.minBv() != null && summary.getBV() < query.minBv()) {
+            return false;
+        }
+        if (query.maxBv() != null && summary.getBV() > query.maxBv()) {
+            return false;
+        }
+        if (query.techBase() != null && !query.techBase().isBlank()
+              && !query.techBase().equalsIgnoreCase(summary.getTechBase())) {
+            return false;
+        }
         return true;
     }
 

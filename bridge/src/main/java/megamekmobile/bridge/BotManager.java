@@ -33,6 +33,24 @@ public final class BotManager {
      * a second bot). Returns {@code null} if the connection attempt itself fails.
      */
     public Princess addBot(String botName) {
+        return addBot(botName, null);
+    }
+
+    /** Difficulty presets map to Princess' built-in behaviour profiles (easy/normal/hard/berserk). */
+    static String behaviorNameFor(String difficulty) {
+        if (difficulty == null) {
+            return "DEFAULT";
+        }
+        return switch (difficulty.toLowerCase()) {
+            case "easy" -> "COWARDLY";
+            case "hard" -> "RUTHLESS";
+            case "berserk" -> "BERSERK";
+            default -> "DEFAULT";
+        };
+    }
+
+    public Princess addBot(String botName, String difficulty) {
+        purgeDisconnected();
         Princess existing = bots.get(botName);
         if (existing != null) {
             LOGGER.warn("Bot '{}' already exists, ignoring", botName);
@@ -40,7 +58,11 @@ public final class BotManager {
         }
 
         Princess princess = new Princess(botName, megamekHost, megamekPort);
-        princess.setBehaviorSettings(BehaviorSettingsFactory.getInstance().DEFAULT_BEHAVIOR);
+        BehaviorSettingsFactory factory = BehaviorSettingsFactory.getInstance();
+        princess.setBehaviorSettings(
+              factory.getBehavior(behaviorNameFor(difficulty)) != null
+                    ? factory.getBehavior(behaviorNameFor(difficulty))
+                    : factory.DEFAULT_BEHAVIOR);
         princess.startPrecognition();
         if (!princess.connect()) {
             LOGGER.error("Bot '{}' could not connect to {}:{}", botName, megamekHost, megamekPort);
@@ -53,6 +75,11 @@ public final class BotManager {
 
     public Princess get(String botName) {
         return bots.get(botName);
+    }
+
+    /** Forgets bots whose connection is gone (e.g. after a finished game reset the server dropped them). */
+    public void purgeDisconnected() {
+        bots.values().removeIf(bot -> !bot.isConnected());
     }
 
     public Collection<Princess> all() {

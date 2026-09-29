@@ -1,5 +1,6 @@
 package megamekmobile.bridge.mapping;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -9,17 +10,26 @@ import megamek.common.Hex;
 import megamek.common.Player;
 import megamek.common.board.Board;
 import megamek.common.enums.GamePhase;
+import megamek.common.equipment.AmmoMounted;
+import megamek.common.equipment.AmmoType;
+import megamek.common.equipment.Mounted;
 import megamek.common.equipment.WeaponMounted;
+import megamek.common.equipment.WeaponType;
 import megamek.common.game.Game;
+import megamek.common.game.GameTurn;
 import megamek.common.loaders.MapSettings;
 import megamek.common.units.Crew;
 import megamek.common.units.Entity;
 import megamek.common.units.Terrain;
 import megamek.common.units.Terrains;
+import megamek.common.units.UnitType;
 
+import megamekmobile.bridge.dto.AmmoDto;
 import megamekmobile.bridge.dto.BoardDto;
 import megamekmobile.bridge.dto.EntityDto;
+import megamekmobile.bridge.dto.GameResultDto;
 import megamekmobile.bridge.dto.GameStateSnapshot;
+import megamekmobile.bridge.dto.LocationDto;
 import megamekmobile.bridge.dto.HexDto;
 import megamekmobile.bridge.dto.PlayerDto;
 import megamekmobile.bridge.dto.TerrainEntryDto;
@@ -54,16 +64,55 @@ public final class GameStateMapper {
 
     public static PlayerDto toDto(Player player) {
         return new PlayerDto(player.getId(), player.getName(), player.getTeam(), player.isDone(),
-              player.getGameMaster(), player.isBot());
+              player.getGameMaster(), player.isBot(), safeBv(player));
+    }
+
+    private static int safeBv(Player player) {
+        try {
+            return player.getBV();
+        } catch (RuntimeException e) {
+            return 0;
+        }
     }
 
     public static WeaponDto toDto(WeaponMounted weapon) {
-        return new WeaponDto(weapon.getEquipmentNum(), weapon.getName());
+        WeaponType type = weapon.getType();
+        return new WeaponDto(
+              weapon.getEquipmentNum(),
+              weapon.getName(),
+              weapon.getEntity() == null ? "" : weapon.getEntity().getLocationAbbr(weapon.getLocation()),
+              Math.max(0, type.getDamage()),
+              Math.max(0, type.getHeat()),
+              Math.max(0, type.getMinimumRange()),
+              Math.max(0, type.getShortRange()),
+              Math.max(0, type.getMediumRange()),
+              Math.max(0, type.getLongRange()),
+              weapon.isDestroyed() || weapon.isMissing(),
+              weapon.isUsedThisRound());
     }
 
     public static EntityDto toDto(Entity entity) {
         Crew crew = entity.getCrew();
         List<WeaponDto> weapons = entity.getWeaponList().stream().map(GameStateMapper::toDto).toList();
+
+        List<LocationDto> locations = new ArrayList<>();
+        for (int loc = 0; loc < entity.locations(); loc++) {
+            locations.add(toLocationDto(entity, loc));
+        }
+
+        List<AmmoDto> ammo = new ArrayList<>();
+        for (AmmoMounted bin : entity.getAmmo()) {
+            int maxShots = bin.getType() instanceof AmmoType ammoType ? ammoType.getShots() : 0;
+            ammo.add(new AmmoDto(bin.getName(), entity.getLocationAbbr(bin.getLocation()),
+                  Math.max(0, bin.getBaseShotsLeft()), maxShots));
+        }
+
+        List<String> damaged = new ArrayList<>();
+        for (Mounted<?> mounted : entity.getEquipment()) {
+            if (mounted.isDestroyed() || mounted.isMissing()) {
+                damaged.add(mounted.getName());
+            }
+        }
 
         return new EntityDto(
               entity.getId(),
@@ -83,7 +132,45 @@ public final class GameStateMapper {
               crew == null ? "" : crew.getName(),
               crew == null ? 0 : crew.getGunnery(),
               crew == null ? 0 : crew.getHits(),
-              weapons);
+              weapons,
+              entity.getWeight(),
+              safeBv(entity),
+              UnitType.getTypeName(entity.getUnitType()),
+              crew == null ? 5 : crew.getPiloting(),
+              entity.getHeat(),
+              entity.getHeatCapacity(),
+              entity.getWalkMP(),
+              entity.getRunMP(),
+              entity.getJumpMP(),
+              entity.isProne(),
+              entity.isShutDown(),
+              entity.isImmobile(),
+              entity.isDeployed(),
+              locations,
+              ammo,
+              damaged);
+    }
+
+    private static int safeBv(Entity entity) {
+        try {
+            return entity.calculateBattleValue();
+        } catch (RuntimeException e) {
+            return 0;
+        }
+    }
+
+    private static LocationDto toLocationDto(Entity entity, int loc) {
+        boolean rear = entity.hasRearArmor(loc);
+        return new LocationDto(
+              entity.getLocationName(loc),
+              entity.getLocationAbbr(loc),
+              Math.max(0, entity.getArmor(loc)),
+              Math.max(0, entity.getOArmor(loc)),
+              rear ? Math.max(0, entity.getArmor(loc, true)) : 0,
+              rear ? Math.max(0, entity.getOArmor(loc, true)) : 0,
+              Math.max(0, entity.getInternal(loc)),
+              Math.max(0, entity.getOInternal(loc)),
+              entity.isLocationBad(loc));
     }
 
     private static int sumRemainingArmor(Entity entity) {
@@ -139,6 +226,72 @@ public final class GameStateMapper {
         return new BoardDto(boardId, board.getWidth(), board.getHeight(), hexes);
     }
 
+    /** Whether {@code playerId} is expected to act right now (mirrors {@code Client.isMyTurn()}). */
+    public static boolean isPlayersTurn(Game game, int playerId) {
+        GamePhase phase = game.getPhase();
+        if (phase == null) {
+            return false;
+        }
+        if (phase.isSimultaneous(game)) {
+            return game.getTurnForPlayer(playerId) != null;
+        }
+        GameTurn turn = game.getTurn();
+        return turn != null && turn.isValid(playerId, game);
+    }
+
+    /** Ids of the player's units that may take the current turn (deploy, move, fire, ...). */
+    public static List<Integer> actableEntityIds(Game game, int playerId) {
+        List<Integer> ids = new ArrayList<>();
+        GamePhase phase = game.getPhase();
+        if (phase == null || !isPlayersTurn(game, playerId)) {
+            return ids;
+        }
+        GameTurn turn = phase.isSimultaneous(game) ? game.getTurnForPlayer(playerId) : game.getTurn();
+        if (turn == null) {
+            return ids;
+        }
+        for (Entity entity : game.inGameTWEntities()) {
+            if (entity.getOwnerId() != playerId || entity.isDestroyed() || !turn.isValidEntity(entity, game)) {
+                continue;
+            }
+            boolean eligible = switch (phase) {
+                case DEPLOYMENT -> entity.shouldDeploy(game.getCurrentRound());
+                case MOVEMENT -> entity.isDeployed() && entity.isEligibleForMovement();
+                case FIRING -> entity.isDeployed() && entity.isEligibleForFiring();
+                case PHYSICAL -> entity.isDeployed() && entity.isEligibleForPhysical();
+                case TARGETING -> entity.isDeployed() && entity.isEligibleForTargetingPhase();
+                default -> false;
+            };
+            if (eligible) {
+                ids.add(entity.getId());
+            }
+        }
+        return ids;
+    }
+
+    public static GameResultDto result(Game game, Integer localPlayerId) {
+        if (game.getPhase() == null || !game.getPhase().isVictory()) {
+            return null;
+        }
+        int winnerPlayer = game.getVictoryPlayerId();
+        int winnerTeam = game.getVictoryTeam();
+        Player local = localPlayerId == null ? null : game.getPlayer(localPlayerId);
+        boolean won = localPlayerId != null && winnerPlayer != Player.PLAYER_NONE && winnerPlayer == localPlayerId;
+        if (!won && local != null && winnerTeam != Player.TEAM_NONE && local.getTeam() == winnerTeam) {
+            won = true;
+        }
+        String summary;
+        if (winnerPlayer == Player.PLAYER_NONE && winnerTeam == Player.TEAM_NONE) {
+            summary = "Draw - no winner";
+        } else if (winnerPlayer != Player.PLAYER_NONE) {
+            Player winner = game.getPlayer(winnerPlayer);
+            summary = "Winner: " + (winner == null ? "player " + winnerPlayer : winner.getName());
+        } else {
+            summary = "Winner: team " + winnerTeam;
+        }
+        return new GameResultDto(winnerPlayer, winnerTeam, won, summary);
+    }
+
     public static GameStateSnapshot snapshot(Game game, Integer localPlayerId) {
         List<PlayerDto> players = game.getPlayersList().stream().map(GameStateMapper::toDto).toList();
         List<EntityDto> entities = game.inGameTWEntities().stream().map(GameStateMapper::toDto).toList();
@@ -163,6 +316,18 @@ public final class GameStateMapper {
               .filter(Objects::nonNull)
               .toList();
 
+        boolean myTurn = false;
+        List<Integer> actable = List.of();
+        Integer turnPlayerId = null;
+        if (localPlayerId != null && localPlayerId >= 0) {
+            myTurn = isPlayersTurn(game, localPlayerId);
+            actable = actableEntityIds(game, localPlayerId);
+        }
+        GameTurn turn = game.getTurn();
+        if (turn != null) {
+            turnPlayerId = turn.playerId();
+        }
+
         GamePhase phase = game.getPhase();
         return new GameStateSnapshot(
               phase == null ? "UNKNOWN" : phase.name(),
@@ -172,6 +337,10 @@ public final class GameStateMapper {
               entities,
               boardDtos,
               availableBoards,
-              selectedBoards);
+              selectedBoards,
+              turnPlayerId,
+              myTurn,
+              actable,
+              result(game, localPlayerId));
     }
 }

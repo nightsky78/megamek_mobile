@@ -25,5 +25,21 @@ public record EntityDto(
       String pilotName,
       int gunnery,
       int pilotHits,
-      List<WeaponDto> weapons) {
+      List<WeaponDto> weapons,
+      double tons,
+      int bv,
+      String unitType,
+      int piloting,
+      int heat,
+      int heatCapacity,
+      int walkMp,
+      int runMp,
+      int jumpMp,
+      boolean prone,
+      boolean shutDown,
+      boolean immobile,
+      boolean deployed,
+      List<LocationDto> locations,
+      List<AmmoDto> ammo,
+      List<String> damagedEquipment) {
 }

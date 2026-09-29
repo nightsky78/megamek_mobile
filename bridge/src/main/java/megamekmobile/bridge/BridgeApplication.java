@@ -1,18 +1,8 @@
 package megamekmobile.bridge;
 
-import megamek.common.event.GameListenerAdapter;
-import megamek.common.event.GameSettingsChangeEvent;
-import megamek.common.event.board.GameBoardChangeEvent;
-import megamek.common.event.board.GameBoardNewEvent;
-import megamek.common.event.entity.GameEntityChangeEvent;
-import megamek.common.event.entity.GameEntityNewEvent;
-import megamek.common.event.entity.GameEntityRemoveEvent;
-import megamek.common.event.player.GamePlayerChangeEvent;
-import megamek.common.event.player.GamePlayerChatEvent;
 import megamek.common.loaders.MekSummaryCache;
 import megamek.logging.MMLogger;
 
-import megamekmobile.bridge.dto.ChatMessage;
 import megamekmobile.bridge.dto.ConnectionStatusMessage;
 
 /**
@@ -45,9 +35,14 @@ public final class BridgeApplication {
               config.megamekHost(),
               config.megamekPort());
         BotManager botManager = new BotManager(config.megamekHost(), config.megamekPort());
+        BridgeSession session = new BridgeSession(client, botManager, config.serverPassword());
+        BridgeServer server = new BridgeServer(session);
+        session.attach(server);
 
-        BridgeServer server = new BridgeServer(client, botManager);
-        registerGameListeners(client, server);
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            session.shutdown();
+            server.stop();
+        }));
 
         server.start(config.bridgePort());
 
@@ -58,70 +53,5 @@ public final class BridgeApplication {
             return;
         }
         server.broadcast(new ConnectionStatusMessage("connected", null));
-
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            botManager.shutdown();
-            client.die();
-            server.stop();
-        }));
-    }
-
-    /**
-     * Rebuilds and re-broadcasts the full snapshot on every structural change. See CLAUDE.md
-     * "Bekannter Stand" for the documented follow-up of diffing instead of resending everything.
-     */
-    private static void registerGameListeners(MegaMekBridgeClient client, BridgeServer server) {
-        client.getGame().addGameListener(new GameListenerAdapter() {
-
-            @Override
-            public void gamePhaseChange(megamek.common.event.GamePhaseChangeEvent e) {
-                server.broadcastSnapshot();
-            }
-
-            @Override
-            public void gameTurnChange(megamek.common.event.GameTurnChangeEvent e) {
-                server.broadcastSnapshot();
-            }
-
-            @Override
-            public void gameEntityNew(GameEntityNewEvent e) {
-                server.broadcastSnapshot();
-            }
-
-            @Override
-            public void gameEntityRemove(GameEntityRemoveEvent e) {
-                server.broadcastSnapshot();
-            }
-
-            @Override
-            public void gameEntityChange(GameEntityChangeEvent e) {
-                server.broadcastSnapshot();
-            }
-
-            @Override
-            public void gamePlayerChange(GamePlayerChangeEvent e) {
-                server.broadcastSnapshot();
-            }
-
-            @Override
-            public void gameBoardNew(GameBoardNewEvent e) {
-                server.broadcastSnapshot();
-            }
-
-            @Override
-            public void gameBoardChanged(GameBoardChangeEvent e) {
-                server.broadcastSnapshot();
-            }
-
-            @Override
-            public void gameSettingsChange(GameSettingsChangeEvent e) {
-                server.broadcastSnapshot();
-            }
-
-            @Override
-            public void gamePlayerChat(GamePlayerChatEvent e) {
-                server.broadcast(new ChatMessage(e.getMessage()));
-            }
-        });
     }
 }
