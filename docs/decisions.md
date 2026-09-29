@@ -63,18 +63,22 @@ Ursprünglich war geplant, den dedizierten Server aus dem offiziellen
 MegaMek-Release-Zip zu ziehen (kein eigener Gradle-Build im Server-Image
 nötig). Das setzt aber einen Release-Tag voraus, der dieselbe MegaMek-Version
 spricht wie die Bridge — sonst lehnt `SERVER_VERSION_CHECK` die
-Bridge-Verbindung ab (siehe `docs/protocol-notes.md`). Da `HeadlessClient`
-(worauf die Bridge aufbaut, siehe Entscheidung 1) zum Recherchezeitpunkt nur
-auf `master` existiert und in keinem Release-Tag enthalten ist, gibt es kein
-passendes Release-Artefakt. `docker/megamek-server/Dockerfile` baut den
-Server daher **ebenfalls per Multi-Stage-Build aus `vendor/megamek`-Quellcode**
-(`./gradlew :megamek:installDist`, derselbe Submodule-Commit wie die Bridge)
-— das ist die einzige Möglichkeit, garantiert dieselbe Version wie die Bridge
-zu haben, und bleibt trotzdem "unverändert" im Sinne des Auftrags: kein
-einziges MegaMek-Quellfile wird angefasst, nur kompiliert. Sobald ein
-offizieller Release-Tag mit `HeadlessClient` erscheint, kann auf das
-schnellere Release-Zip umgestellt werden (Kompromiss im Dockerfile
-kommentiert).
+Bridge-Verbindung ab (siehe `docs/protocol-notes.md`).
+
+**Korrektur (siehe `docs/protocol-notes.md`):** Eine frühere Version dieser
+Entscheidung behauptete, `HeadlessClient` existiere nur auf `master` und in
+keinem Release-Tag — das war falsch. `HeadlessClient` gibt es bereits seit
+Januar 2025, lange vor `v0.51.0`. `vendor/megamek` ist mittlerweile korrekt auf
+den tatsächlichen `v0.51.0`-Release-Commit gepinnt (nicht `master`/HEAD), genau
+damit die Bridge neben einer Standard-Installation läuft. Ein offizielles
+Release-Zip von `v0.51.0` würde daher inzwischen ebenfalls funktionieren.
+`docker/megamek-server/Dockerfile` baut den Server trotzdem weiterhin **per
+Multi-Stage-Build aus `vendor/megamek`-Quellcode** (`./gradlew
+:megamek:installDist`, derselbe Submodule-Commit wie die Bridge) — das bleibt
+die zuverlässigste Garantie, dass Server- und Bridge-Version exakt
+übereinstimmen, unabhängig davon, welchen Commit `vendor/megamek` gerade
+gepinnt hat, und bleibt trotzdem "unverändert" im Sinne des Auftrags: kein
+einziges MegaMek-Quellfile wird angefasst, nur kompiliert.
 
 Das Server-Image *braucht* die echten `mm-data`-Inhalte zur Laufzeit (Karten,
 Einheiten-Definitionen) und stößt sie über `installDist`s volle Sync-Tasks an

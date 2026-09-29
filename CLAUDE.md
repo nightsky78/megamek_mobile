@@ -30,7 +30,7 @@ den Spieler-Slot); zwei Spieler = zwei Bridge-Instanzen (siehe
 |---|---|
 | `bridge/` | Java/Gradle-Modul: MegaMek-Client-Wrapper + Javalin-WebSocket/REST-API. Bindet `vendor/megamek` als Compile-Dependency ein. |
 | `mobile/` | Flutter-App (iOS/Android), spricht ausschließlich mit der Bridge, kein MegaMek-Code/-Assets. |
-| `docs/` | `protocol-notes.md` (MegaMek-Packet↔JSON-Mapping), `licensing.md`, `decisions.md` (ADRs). |
+| `docs/` | `protocol-notes.md` (MegaMek-Packet↔JSON-Mapping), `licensing.md`, `decisions.md` (ADRs), `roadmap.md` (Weg zum spielbaren MVP + spätere plattformübergreifende Mehrspieler-Erweiterung; aktueller als "Bekannter Stand" unten). |
 | `vendor/megamek`, `vendor/mm-data` | Git-Submodule, read-only Referenzen auf die offiziellen MegaMek-Repos (siehe `docs/decisions.md` #1, #5). Nach Klonen: `git submodule update --init --recursive` (lädt ca. 2 GB, nur für lokale Bridge-Builds/CI nötig, nicht fürs bloße App-Entwickeln). |
 | `docker/` | `docker-compose.yml`, Dockerfiles für MegaMek-Server + Bridge. |
 
@@ -158,7 +158,6 @@ nachgeholt werden, bevor der MVP als vollständig abgenommen gilt.
 ### Bekannte Einschränkungen (gilt für den gesamten MVP)
 
 - Kein Aerospace-/Weltraumkampf, nur Bodengefechte (Meks/Vehicles/Infantry).
-- Kein KI-Bot (Princess).
 - Kein Speichern/Laden von Spielständen über die App.
 - Deployment-Sonderfälle (Minefields, Hidden Units, Artillery-Auto-Hit,
   Force-/C3-Netzwerke, Trailer/Train) werden von der Bridge nicht übersetzt.

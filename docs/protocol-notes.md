@@ -1,13 +1,22 @@
 # MegaMek-Protokoll-Notizen (für die Bridge)
 
-Grundlage: `vendor/megamek` @ `f02023f9aeb8799881d7a8527ddf4fe0f9919d47` (master,
-26.09.2026). Dieser Commit enthält bereits die in PR #6418 gemergte Arbeit
-("Headless client, Commander GUI"): `megamek.client.HeadlessClient` und
-`megamek.client.ui.clientGUI.CommanderGUI`. Das ist der ideale Anknüpfungspunkt
-für die Bridge — MegaMek hat mit `HeadlessClient` bereits eine offiziell
-unterstützte, GUI-lose `Client`-Unterklasse gebaut (aktuell für MekHQ-Batches
-gedacht), die wir 1:1 wiederverwenden statt eine eigene Client-Implementierung
-zu schreiben.
+Grundlage: `vendor/megamek` @ `e601296070cf8b126389c24f3022c02876a9ac88` — dem
+tatsächlich veröffentlichten Release-Commit von **v0.51.0** (06.06.2026), nicht
+irgendein Dev-Snapshot. Das ist wichtig: MegaMeks `SERVER_VERSION_CHECK` verlangt
+exakte Übereinstimmung des Versionsstrings zwischen Client und Server (siehe
+Abschnitt "Login-/Verbindungsablauf" unten) — die Bridge muss also auf einer
+Version stehen, die es tatsächlich als Release gibt, damit sie neben einer
+Standard-MegaMek-Installation laufen kann (nicht auf `master`/HEAD, was einen
+unveröffentlichten Entwicklungsstand mit eigenem, noch nicht existierendem
+Versionsstring hätte). `megamek.client.HeadlessClient` und
+`megamek.client.ui.clientGUI.CommanderGUI` sind KEIN Grund, einen Dev-Snapshot zu
+brauchen — beide gibt es bereits seit Januar 2025, lange vor v0.51.0. Eine frühere
+Version dieser Notiz behauptete fälschlich, `HeadlessClient` sei erst durch einen
+unveröffentlichten "PR #6418" hinzugekommen; das war falsch und hat die Bridge
+längere Zeit an eine Version gebunden, die kein reales Server-Install je hatte.
+`HeadlessClient` ist eine offiziell unterstützte, GUI-lose `Client`-Unterklasse
+(aktuell für MekHQ-Batches gedacht), die wir 1:1 wiederverwenden statt eine eigene
+Client-Implementierung zu schreiben.
 
 ## Architekturüberblick auf MegaMek-Seite
 
@@ -66,6 +75,13 @@ IClient (Interface)
 | `Client.sendAttackData(aen, Vector<EntityAction>)` mit `WeaponAttackAction(entityId, targetId, weaponId)` | C→S | Aktion `action.attack` (Zieleinheit + Waffen-IDs) |
 | `SENDING_REPORTS*` | S→C | `state.log` (Textreports, z. B. Trefferergebnisse) — im MVP nur durchgereicht, nicht strukturiert geparst |
 | `GAME_VICTORY_EVENT` / `changePhase(VICTORY)` | S→C | `state.phase = VICTORY` + `event.game_over` |
+| `MekSummaryCache.getMek(ref)` + `MekSummary.loadEntity()` + `Client.sendAddEntity(List<Entity>)` (baut `ENTITY_ADD`) | C→S | Aktion `action.add_unit` (fügt der eigenen Rosterliste einen Mek hinzu) |
+| `new Princess(name, host, port)` + `.connect()` (eigener, zweiter In-Process-Client) | C→S | Aktion `action.add_bot` (siehe `BotManager`, verwaltet den Bot-Client separat vom Human-`Client`) |
+| `Princess.sendAddEntity(List<Entity>)` (gleicher Call wie oben, auf dem Bot-Client) | C→S | Aktion `action.add_bot_unit` |
+| `Client.sendMapSettings(MapSettings)` (baut `SENDING_MAP_SETTINGS`) | C→S | Aktion `action.select_board` |
+| `SENDING_MAP_SETTINGS` (Server meldet verfügbare/gewählte Boards zurück) | S→C | `state.snapshot.availableBoards`/`.selectedBoards` (via `GameSettingsChangeEvent`) |
+| `Client.sendDone(true)` auf dem Human-`Client` **und** jedem Bot-`Client` | C→S | Aktion `action.start_game` (kein eigenes Server-Packet — der Server wechselt selbst LOUNGE→DEPLOYMENT, sobald alle bereit sind und mindestens eine Entity existiert) |
+| `MekSummaryCache.getAllMeks()` (lokal, kein Server-Roundtrip) | — | Aktion `action.unit_catalog_search` → Antwort `state.unit_catalog` (nur an den anfragenden Client, kein Broadcast) |
 
 ## Bewusst NICHT im MVP abgebildet (siehe CLAUDE.md "Bekannter Stand")
 
@@ -76,7 +92,6 @@ IClient (Interface)
   Unterstützung ist Folgearbeit.
 - Speichern/Laden (`SEND_SAVEGAME`/`LOAD_SAVEGAME`/`LOAD_GAME`)
 - Aerospace/Space-Combat-Packets (kein Nicht-Ziel-Bereich, siehe Auftrag)
-- Bot-/Princess-Integration (`PRINCESS_*`) — kein Ziel für MVP
 
 ## JSON-Übersetzung: Prinzip
 
