@@ -932,7 +932,8 @@ class _VictoryOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     final result = snapshot.result;
     final won = result?.localWon ?? false;
-    final draw = result == null || result.winnerPlayerId < 0;
+    final draw =
+        result == null || (result.winnerPlayerId < 0 && result.winnerTeam <= 0);
     return ColoredBox(
       color: Colors.black54,
       child: Center(
