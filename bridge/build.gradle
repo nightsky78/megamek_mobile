@@ -35,7 +35,7 @@ dependencies {
 }
 
 application {
-    mainClass = 'megamek.mobile.bridge.BridgeApplication'
+    mainClass = 'megamekmobile.bridge.BridgeApplication'
     // Needed at runtime by MegaMek's own classes (XStream/reflection over the
     // JDK's internal collection types), mirrored from vendor/megamek/megamek/build.gradle
     // ("mmJvmOptions") since we don't reuse that script directly.
@@ -45,8 +45,18 @@ application {
     ]
 }
 
-tasks.named('test') {
+tasks.named('run', JavaExec) {
+    // MegaMek's static init (SuiteConstants/MilestoneReleaseLoader etc.) reads
+    // config relative to the process working directory (e.g. mmconf/milestoneReleases.yml).
+    // Point it at the vendor checkout instead of copying mmconf/ into bridge/.
+    workingDir = file("${rootDir}/vendor/megamek/megamek")
+}
+
+tasks.named('test', Test) {
     useJUnitPlatform()
+    // Same reason as the 'run' task above: tests that touch MegaMek's Game/SuiteConstants
+    // static init (e.g. constructing a real Game) need mmconf/ on the working directory.
+    workingDir = file("${rootDir}/vendor/megamek/megamek")
 }
 
 tasks.withType(JavaCompile).configureEach {
