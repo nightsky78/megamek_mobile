@@ -2,6 +2,8 @@ package megamekmobile.bridge.mapping;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 import megamek.common.Hex;
 import megamek.common.Player;
@@ -9,14 +11,18 @@ import megamek.common.board.Board;
 import megamek.common.enums.GamePhase;
 import megamek.common.equipment.WeaponMounted;
 import megamek.common.game.Game;
+import megamek.common.loaders.MapSettings;
 import megamek.common.units.Crew;
 import megamek.common.units.Entity;
+import megamek.common.units.Terrain;
+import megamek.common.units.Terrains;
 
 import megamekmobile.bridge.dto.BoardDto;
 import megamekmobile.bridge.dto.EntityDto;
 import megamekmobile.bridge.dto.GameStateSnapshot;
 import megamekmobile.bridge.dto.HexDto;
 import megamekmobile.bridge.dto.PlayerDto;
+import megamekmobile.bridge.dto.TerrainEntryDto;
 import megamekmobile.bridge.dto.WeaponDto;
 
 /**
@@ -27,12 +33,28 @@ import megamekmobile.bridge.dto.WeaponDto;
  */
 public final class GameStateMapper {
 
+    /**
+     * Terrain types the mobile renderer draws. Excludes MegaMek's automatic/decorative types
+     * (INCLINE_*, CLIFF_TOP/BOTTOM - see {@code Terrains.AUTOMATIC}) and the {@code *_FLUFF}/
+     * tileset-selection-only constants, none of which affect gameplay-relevant terrain identity.
+     * Pinned against {@code vendor/megamek} @ e601296070c (v0.51.0) - a future vendor bump should
+     * diff {@code Terrains.java} against this set.
+     */
+    private static final Set<Integer> RENDERED_TERRAIN_TYPES = Set.of(
+          Terrains.WOODS, Terrains.WATER, Terrains.ROUGH, Terrains.RUBBLE, Terrains.JUNGLE,
+          Terrains.SAND, Terrains.TUNDRA, Terrains.MAGMA, Terrains.FIELDS, Terrains.INDUSTRIAL,
+          Terrains.PAVEMENT, Terrains.ROAD, Terrains.SWAMP, Terrains.MUD, Terrains.RAPIDS,
+          Terrains.ICE, Terrains.SNOW, Terrains.FIRE, Terrains.SMOKE, Terrains.GEYSER,
+          Terrains.BUILDING, Terrains.BLDG_CF, Terrains.BLDG_ELEV,
+          Terrains.BRIDGE, Terrains.BRIDGE_CF, Terrains.BRIDGE_ELEV,
+          Terrains.FORTIFIED);
+
     private GameStateMapper() {
     }
 
     public static PlayerDto toDto(Player player) {
         return new PlayerDto(player.getId(), player.getName(), player.getTeam(), player.isDone(),
-              player.getGameMaster());
+              player.getGameMaster(), player.isBot());
     }
 
     public static WeaponDto toDto(WeaponMounted weapon) {
@@ -87,7 +109,16 @@ public final class GameStateMapper {
     }
 
     public static HexDto toDto(Hex hex, int x, int y) {
-        return new HexDto(x, y, hex.getLevel(), hex.getTheme());
+        List<TerrainEntryDto> terrain = hex.getTerrainTypesSet()
+              .stream()
+              .filter(RENDERED_TERRAIN_TYPES::contains)
+              .sorted() // deterministic JSON regardless of the backing HashSet's iteration order
+              .map(type -> {
+                  Terrain t = hex.getTerrain(type);
+                  return new TerrainEntryDto(type, t.getLevel(), t.getExits());
+              })
+              .toList();
+        return new HexDto(x, y, hex.getLevel(), hex.getTheme(), terrain);
     }
 
     /**
@@ -118,6 +149,20 @@ public final class GameStateMapper {
               .map(entry -> toDto(entry.getKey(), entry.getValue()))
               .toList();
 
+        // boardsSelected can legitimately contain null entries - MapSettings pads unfilled mosaic
+        // slots with null when the board grid is resized (see MapSettings#setMapSize) - which
+        // List.copyOf() rejects outright, so those slots are dropped rather than surfaced as JSON
+        // null (the mobile app has no representation for "no board chosen yet" per-slot anyway).
+        MapSettings mapSettings = game.getMapSettings();
+        List<String> availableBoards = mapSettings.getBoardsAvailableVector()
+              .stream()
+              .filter(Objects::nonNull)
+              .toList();
+        List<String> selectedBoards = mapSettings.getBoardsSelectedVector()
+              .stream()
+              .filter(Objects::nonNull)
+              .toList();
+
         GamePhase phase = game.getPhase();
         return new GameStateSnapshot(
               phase == null ? "UNKNOWN" : phase.name(),
@@ -125,6 +170,8 @@ public final class GameStateMapper {
               localPlayerId,
               players,
               entities,
-              boardDtos);
+              boardDtos,
+              availableBoards,
+              selectedBoards);
     }
 }

@@ -4,18 +4,28 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+
+import java.util.Arrays;
+import java.util.List;
 
 import megamek.common.Hex;
 import megamek.common.Player;
 import megamek.common.board.Board;
 import megamek.common.board.Coords;
+import megamek.common.equipment.EquipmentType;
+import megamek.common.game.Game;
 import megamek.common.units.BipedMek;
+import megamek.common.units.Terrain;
+import megamek.common.units.Terrains;
 
 import megamekmobile.bridge.dto.BoardDto;
 import megamekmobile.bridge.dto.EntityDto;
+import megamekmobile.bridge.dto.GameStateSnapshot;
 import megamekmobile.bridge.dto.HexDto;
 import megamekmobile.bridge.dto.PlayerDto;
+import megamekmobile.bridge.dto.TerrainEntryDto;
 
 /**
  * Verifies the MegaMek-object -> bridge-DTO translation described in docs/protocol-notes.md, using real
@@ -23,6 +33,15 @@ import megamekmobile.bridge.dto.PlayerDto;
  * silently producing wrong JSON.
  */
 class GameStateMapperTest {
+
+    @BeforeAll
+    static void initializeMegaMekEquipmentTypes() {
+        // Entity subclasses (BipedMek etc.) look up armor/weapon types from EquipmentType's static
+        // lookup table during construction; MegaMek's own tests bootstrap it the same way (e.g.
+        // vendor/megamek/megamek/unittests/megamek/common/TsmImplantTest.java) rather than relying on
+        // it having been populated by some other code path already run in this JVM.
+        EquipmentType.initializeTypes();
+    }
 
     @Test
     void mapsPlayerFields() {
@@ -37,6 +56,17 @@ class GameStateMapperTest {
         assertEquals(2, dto.team());
         assertTrue(dto.done());
         assertFalse(dto.gameMaster());
+        assertFalse(dto.bot());
+    }
+
+    @Test
+    void mapsBotPlayerFlag() {
+        Player player = new Player(4, "Princess1");
+        player.setBot(true);
+
+        PlayerDto dto = GameStateMapper.toDto(player);
+
+        assertTrue(dto.bot());
     }
 
     @Test
@@ -102,5 +132,59 @@ class GameStateMapperTest {
         assertEquals(1, second.x());
         assertEquals(2, second.level());
         assertEquals("desert", second.theme());
+        assertTrue(first.terrain().isEmpty());
+        assertTrue(second.terrain().isEmpty());
+    }
+
+    @Test
+    void mapsHexTerrainEntriesFilteredToRenderedTypes() {
+        Hex hex = new Hex(0);
+        hex.addTerrain(new Terrain(Terrains.WOODS, 2)); // heavy woods, no exits
+        hex.addTerrain(new Terrain(Terrains.ROAD, 1, true, 0b000011)); // normal road, exits N+NE
+        hex.addTerrain(new Terrain(Terrains.INCLINE_TOP, 1, true, 0b000001)); // automatic - must be excluded
+
+        HexDto dto = GameStateMapper.toDto(hex, 5, 6);
+
+        assertEquals(5, dto.x());
+        assertEquals(6, dto.y());
+        assertEquals(0, dto.level());
+        assertEquals(2, dto.terrain().size());
+
+        TerrainEntryDto woods = dto.terrain().stream()
+              .filter(t -> t.type() == Terrains.WOODS).findFirst().orElseThrow();
+        assertEquals(2, woods.level());
+        assertEquals(0, woods.exits());
+
+        TerrainEntryDto road = dto.terrain().stream()
+              .filter(t -> t.type() == Terrains.ROAD).findFirst().orElseThrow();
+        assertEquals(1, road.level());
+        assertEquals(3, road.exits());
+
+        assertTrue(dto.terrain().stream().noneMatch(t -> t.type() == Terrains.INCLINE_TOP));
+    }
+
+    @Test
+    void snapshotIncludesAvailableAndSelectedBoards() {
+        Game game = new Game();
+        game.getMapSettings().setBoardsAvailableVector(List.of("board1", "board2"));
+        game.getMapSettings().setBoardsSelectedVector(List.of("board1"));
+
+        GameStateSnapshot snapshot = GameStateMapper.snapshot(game, 1);
+
+        assertEquals(List.of("board1", "board2"), snapshot.availableBoards());
+        assertEquals(List.of("board1"), snapshot.selectedBoards());
+    }
+
+    @Test
+    void snapshotDropsNullBoardSlotsInsteadOfThrowing() {
+        // MapSettings pads boardsSelected with null when the board mosaic is resized before every
+        // slot is filled (see MapSettings#setMapSize) - List.copyOf() rejects nulls outright, so
+        // this reproduces the NullPointerException hit once a real game moved past LOUNGE.
+        Game game = new Game();
+        game.getMapSettings().setBoardsSelectedVector(Arrays.asList("board1", null));
+
+        GameStateSnapshot snapshot = GameStateMapper.snapshot(game, 1);
+
+        assertEquals(List.of("board1"), snapshot.selectedBoards());
     }
 }

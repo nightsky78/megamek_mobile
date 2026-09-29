@@ -1,6 +1,7 @@
 package megamekmobile.bridge;
 
 import megamek.common.event.GameListenerAdapter;
+import megamek.common.event.GameSettingsChangeEvent;
 import megamek.common.event.board.GameBoardChangeEvent;
 import megamek.common.event.board.GameBoardNewEvent;
 import megamek.common.event.entity.GameEntityChangeEvent;
@@ -8,6 +9,7 @@ import megamek.common.event.entity.GameEntityNewEvent;
 import megamek.common.event.entity.GameEntityRemoveEvent;
 import megamek.common.event.player.GamePlayerChangeEvent;
 import megamek.common.event.player.GamePlayerChatEvent;
+import megamek.common.loaders.MekSummaryCache;
 import megamek.logging.MMLogger;
 
 import megamekmobile.bridge.dto.ChatMessage;
@@ -34,12 +36,17 @@ public final class BridgeApplication {
               config.megamekPort(),
               config.bridgePort());
 
+        // Kicks off MekSummaryCache's background load now, so it's likely already warm by the time a
+        // mobile client opens the mech catalog (getAllMeks()/getMek() block until loading finishes).
+        MekSummaryCache.getInstance();
+
         MegaMekBridgeClient client = new MegaMekBridgeClient(
               config.playerName(),
               config.megamekHost(),
               config.megamekPort());
+        BotManager botManager = new BotManager(config.megamekHost(), config.megamekPort());
 
-        BridgeServer server = new BridgeServer(client);
+        BridgeServer server = new BridgeServer(client, botManager);
         registerGameListeners(client, server);
 
         server.start(config.bridgePort());
@@ -53,6 +60,7 @@ public final class BridgeApplication {
         server.broadcast(new ConnectionStatusMessage("connected", null));
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            botManager.shutdown();
             client.die();
             server.stop();
         }));
@@ -102,6 +110,11 @@ public final class BridgeApplication {
 
             @Override
             public void gameBoardChanged(GameBoardChangeEvent e) {
+                server.broadcastSnapshot();
+            }
+
+            @Override
+            public void gameSettingsChange(GameSettingsChangeEvent e) {
                 server.broadcastSnapshot();
             }
 

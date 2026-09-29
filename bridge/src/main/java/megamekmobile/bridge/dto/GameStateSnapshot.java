@@ -18,7 +18,9 @@ public record GameStateSnapshot(
       Integer localPlayerId,
       List<PlayerDto> players,
       List<EntityDto> entities,
-      List<BoardDto> boards) {
+      List<BoardDto> boards,
+      List<String> availableBoards,
+      List<String> selectedBoards) {
 
     public static final String TYPE = "state.snapshot";
     public static final int SCHEMA_VERSION = 1;
@@ -29,7 +31,10 @@ public record GameStateSnapshot(
           Integer localPlayerId,
           List<PlayerDto> players,
           List<EntityDto> entities,
-          List<BoardDto> boards) {
-        this(TYPE, SCHEMA_VERSION, phase, round, localPlayerId, players, entities, boards);
+          List<BoardDto> boards,
+          List<String> availableBoards,
+          List<String> selectedBoards) {
+        this(TYPE, SCHEMA_VERSION, phase, round, localPlayerId, players, entities, boards,
+              availableBoards, selectedBoards);
     }
 }

@@ -71,7 +71,8 @@ Every message is a flat JSON object with `"type"` and `"schemaVersion"` fields
   "round": 3,
   "localPlayerId": 1,
   "players": [
-    {"id": 1, "name": "Pilot1", "team": 1, "done": false, "gameMaster": false}
+    {"id": 1, "name": "Pilot1", "team": 1, "done": false, "gameMaster": false, "bot": false},
+    {"id": 2, "name": "Princess1", "team": 2, "done": true, "gameMaster": false, "bot": true}
   ],
   "entities": [
     {
@@ -83,12 +84,35 @@ Every message is a flat JSON object with `"type"` and `"schemaVersion"` fields
     }
   ],
   "boards": [
-    {"boardId": 0, "width": 16, "height": 17, "hexes": [{"x": 0, "y": 0, "level": 0, "theme": null}]}
-  ]
+    {"boardId": 0, "width": 16, "height": 17, "hexes": [
+      {"x": 0, "y": 0, "level": 0, "theme": null, "terrain": []},
+      {"x": 1, "y": 0, "level": 0, "theme": null, "terrain": [
+        {"type": 1, "level": 2, "exits": 0},
+        {"type": 13, "level": 1, "exits": 9}
+      ]}
+    ]}
+  ],
+  "availableBoards": ["AGoAC Base", "Sample Boards/CraterCityDay1"],
+  "selectedBoards": ["AGoAC Base"]
 }
 ```
 `phase` is the name of a `megamek.common.enums.GamePhase` constant (`LOUNGE`,
 `DEPLOYMENT`, `MOVEMENT`, `FIRING`, `PHYSICAL`, `END`, `VICTORY`, ...).
+
+Each hex's `terrain` array lists the terrain features present (woods, water, roads,
+buildings, ...), filtered to the types the mobile app actually renders (see
+`GameStateMapper.RENDERED_TERRAIN_TYPES`). `terrain[].type` is a
+`megamek.common.units.Terrains` int constant (e.g. `1` = `WOODS`, `13` = `ROAD`) -
+the mobile client mirrors the relevant constants as literals in
+`lib/features/game/terrain_types.dart` rather than round-tripping a lookup table,
+the same convention already used for `MoveStepType`. `terrain[].level`'s meaning is
+terrain-type-specific (woods canopy density, water depth, building class, ...).
+`terrain[].exits` is a 6-bit hexside mask (`1 << direction`, direction `0`=N
+clockwise to `5`=NW) used by roads/rivers/bridges - in the example above, a road
+with `exits: 9` (`0b001001`) connects toward N and S.
+`availableBoards`/`selectedBoards` are MegaMek's own board filenames (no `.board`
+extension), sourced from `Game.getMapSettings()` - the server discovers and pushes
+these automatically on connect and after every `action.select_board`.
 
 **`chat.message`**
 ```json
@@ -132,6 +156,61 @@ last snapshot.
 **`action.chat`**
 ```json
 {"type": "action.chat", "text": "moving to hold the ridge"}
+```
+
+**`action.add_unit`** - adds a mech to the local player's own roster (lobby phase only).
+```json
+{"type": "action.add_unit", "unitRef": "Atlas AS7-D"}
+```
+`unitRef` must be exactly the `ref` value from a `state.unit_catalog` entry (it's
+`MekSummary.getName()`, not a hand-built "chassis model" string).
+
+**`action.add_bot`** - connects a new Princess AI opponent under the given name (idempotent:
+re-sending the same `botName` is a no-op if it's already connected).
+```json
+{"type": "action.add_bot", "botName": "Princess1"}
+```
+
+**`action.add_bot_unit`** - adds a mech to an already-added bot's roster.
+```json
+{"type": "action.add_bot_unit", "botName": "Princess1", "unitRef": "Timber Wolf Prime"}
+```
+
+**`action.select_board`** - picks the board for the match (single board only in the MVP).
+```json
+{"type": "action.select_board", "boardNames": ["AGoAC Base"]}
+```
+
+**`action.start_game`** - no fields. Calls `sendDone(true)` for the local player and every
+connected bot; the server itself transitions LOUNGE -> DEPLOYMENT once every player (human and
+bot) is done and at least one entity exists anywhere in the game - the bridge never forces the
+phase directly.
+```json
+{"type": "action.start_game"}
+```
+
+**`action.unit_catalog_search`** - all fields optional; answered with a `state.unit_catalog`
+reply sent only to the requesting client (not broadcast, since it isn't derived from `Game` state
+at all).
+```json
+{"type": "action.unit_catalog_search", "text": "atlas", "clanOnly": false, "minTons": 50, "maxTons": 100, "limit": 50}
+```
+
+#### `state.unit_catalog`
+
+Reply to one client's `action.unit_catalog_search` (see `megamekmobile.bridge.dto.UnitCatalogMessage`).
+`totalMatches` is the match count *before* truncation to `limit` (default 50, capped at 200), so
+the UI can show e.g. "50 of 8214 - refine your search".
+```json
+{
+  "type": "state.unit_catalog",
+  "schemaVersion": 1,
+  "totalMatches": 3,
+  "units": [
+    {"ref": "Atlas AS7-D", "chassis": "Atlas", "model": "AS7-D", "unitType": "Mek",
+     "tons": 100, "bv": 1897, "year": 3025, "techBase": "Inner Sphere", "clan": false}
+  ]
+}
 ```
 
 ## Adding a new packet type / DTO field

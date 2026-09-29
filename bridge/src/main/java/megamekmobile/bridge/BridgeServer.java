@@ -1,5 +1,6 @@
 package megamekmobile.bridge;
 
+import java.time.Duration;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -9,12 +10,15 @@ import io.javalin.Javalin;
 import io.javalin.websocket.WsContext;
 import io.javalin.websocket.WsMessageContext;
 
+import megamek.common.loaders.MekSummary;
+import megamek.common.loaders.MekSummaryCache;
 import megamek.logging.MMLogger;
 
 import megamekmobile.bridge.dto.ActionMessage;
 import megamekmobile.bridge.dto.ErrorMessage;
 import megamekmobile.bridge.mapping.ActionHandler;
 import megamekmobile.bridge.mapping.GameStateMapper;
+import megamekmobile.bridge.mapping.UnitCatalogMapper;
 
 /**
  * The mobile-facing side of the bridge: one WebSocket endpoint ({@code /ws}) that every connected
@@ -31,13 +35,18 @@ public class BridgeServer {
     private final Set<WsContext> sessions = ConcurrentHashMap.newKeySet();
     private Javalin app;
 
-    public BridgeServer(MegaMekBridgeClient client) {
+    public BridgeServer(MegaMekBridgeClient client, BotManager botManager) {
         this.client = client;
-        this.actionHandler = new ActionHandler(client);
+        this.actionHandler = new ActionHandler(client, botManager);
     }
 
     public void start(int port) {
-        app = Javalin.create();
+        // Default Jetty WS idle timeout (30s) is far shorter than a human can sit in the
+        // lobby/game reading state before sending a chat message or action; without this,
+        // the socket silently dies mid-session and the app has no reconnect handling (see
+        // mobile/README.md "Known limitations"), so every subsequent action is a no-op.
+        app = Javalin.create(config -> config.jetty.modifyWebSocketServletFactory(
+              factory -> factory.setIdleTimeout(Duration.ofMinutes(30))));
         app.get("/health", ctx -> ctx.result("ok"));
         app.ws("/ws", ws -> {
             ws.onConnect(ctx -> {
@@ -65,6 +74,14 @@ public class BridgeServer {
     private void handleIncoming(WsMessageContext ctx) {
         try {
             ActionMessage message = mapper.readValue(ctx.message(), ActionMessage.class);
+            if (ActionMessage.UNIT_CATALOG_SEARCH.equals(message.type())) {
+                // Answered per-client rather than broadcast: this only touches MekSummaryCache, never
+                // Game/Client, so it can never arrive via the normal GameListener -> broadcastSnapshot
+                // path the rest of the bridge relies on.
+                MekSummary[] allUnits = MekSummaryCache.getInstance().getAllMeks();
+                send(ctx, UnitCatalogMapper.search(allUnits, message));
+                return;
+            }
             actionHandler.handle(message);
         } catch (Exception e) {
             LOGGER.warn(e, "Failed to handle incoming action message");
