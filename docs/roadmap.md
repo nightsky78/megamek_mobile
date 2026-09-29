@@ -45,7 +45,7 @@ phone behavior.
    reach a victory/defeat screen → start a new game.
 2. **Cross-platform smoke test.** One player on the phone (through the bridge) and one
    on desktop MegaMek, both connected to the same standard v0.51.0 server — for example
-   the existing LAN server at 192.168.2.104. Today's architecture already allows this,
+   an existing LAN server. Today's architecture already allows this,
    because the bridge is just another MegaMek client. This is the direct LAN path; the
    central-server path, where PCs connect through the client bridge on 443, is Phase 7.
 3. **Resilience.** Background the app or drop the network mid-turn → the app reconnects

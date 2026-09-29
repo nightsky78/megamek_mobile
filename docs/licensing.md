@@ -25,7 +25,7 @@ Referenz: `vendor/megamek/LICENSE` (Übersichtsdokument), `vendor/megamek/LICENS
    GPL-3.0-Code linkt und MegaMek-Klassen direkt im selben JVM-Prozess nutzt
    (keine reine Netzwerk-Trennung wie bei einem separaten Serverprozess),
    muss die Bridge selbst **ebenfalls unter GPL-3.0-or-later** stehen (siehe
-   `bridge/LICENSE`). Das ist für ein Open-Source-Hobbyprojekt unproblematisch,
+   `LICENSE` im Repo-Root). Das ist für ein Open-Source-Hobbyprojekt unproblematisch,
    aber wichtig für spätere Distribution/Play-Store-Fragen der App zu wissen.
 3. **`mobile/` (Flutter/Dart) spricht nur JSON/WebSocket mit der Bridge**,
    linkt keinen MegaMek-Code und keine Assets. Für die App selbst besteht daher
@@ -47,7 +47,7 @@ Referenz: `vendor/megamek/LICENSE` (Übersichtsdokument), `vendor/megamek/LICENS
 ## Offene Punkte
 
 - Bei einer öffentlichen Veröffentlichung der App (App Store/Play Store) sollte
-  `bridge/LICENSE` (GPL-3.0) und ein klarer Hinweis "inoffizieller MegaMek-Client"
+  `LICENSE` im Repo-Root (GPL-3.0) und ein klarer Hinweis "inoffizieller MegaMek-Client"
   in die Store-Beschreibung übernommen werden.
 - CC-BY-NC-4.0 schließt kommerzielle Nutzung von aus MegaMek übernommenen
   Assets aus. Falls die App monetarisiert werden soll, dürfen keine
