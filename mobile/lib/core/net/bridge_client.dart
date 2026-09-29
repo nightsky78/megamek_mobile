@@ -12,8 +12,13 @@ import '../models/bridge_message.dart';
 class BridgeClient {
   BridgeClient._(this._channel) {
     _subscription = _channel.stream.listen(
-      (raw) => _messages.add(BridgeMessage.fromJson(jsonDecode(raw as String) as Map<String, dynamic>)),
-      onError: (Object error, StackTrace stackTrace) => _messages.addError(error, stackTrace),
+      (raw) => _messages.add(
+        BridgeMessage.fromJson(
+          jsonDecode(raw as String) as Map<String, dynamic>,
+        ),
+      ),
+      onError: (Object error, StackTrace stackTrace) =>
+          _messages.addError(error, stackTrace),
       onDone: () => _messages.close(),
     );
   }
@@ -27,7 +32,8 @@ class BridgeClient {
 
   final WebSocketChannel _channel;
   late final StreamSubscription<void> _subscription;
-  final StreamController<BridgeMessage> _messages = StreamController<BridgeMessage>.broadcast();
+  final StreamController<BridgeMessage> _messages =
+      StreamController<BridgeMessage>.broadcast();
 
   Stream<BridgeMessage> get messages => _messages.stream;
 

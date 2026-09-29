@@ -41,7 +41,9 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     final localPlayer = _findPlayer(snapshot, snapshot.localPlayerId);
 
     if (board == null) {
-      return const Scaffold(body: Center(child: Text('Waiting for the board...')));
+      return const Scaffold(
+        body: Center(child: Text('Waiting for the board...')),
+      );
     }
 
     final geometry = HexGeometry(_hexSize);
@@ -53,7 +55,8 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         snapshot: snapshot,
         isLocalPlayerDone: localPlayer?.done ?? false,
         onEndPhase: () => ref.read(gameSessionProvider.notifier).sendEndPhase(),
-        onOpenUnits: () => _openUnitList(context, snapshot.units, snapshot.localPlayerId),
+        onOpenUnits: () =>
+            _openUnitList(context, snapshot.units, snapshot.localPlayerId),
         onOpenChat: () => _openChat(context, session.chatLog),
       ),
       body: Stack(
@@ -63,7 +66,8 @@ class _GameScreenState extends ConsumerState<GameScreen> {
               maxScale: 4,
               minScale: 0.3,
               child: GestureDetector(
-                onTapUp: (details) => _handleTap(details, board, snapshot.units, geometry),
+                onTapUp: (details) =>
+                    _handleTap(details, board, snapshot.units, geometry),
                 child: CustomPaint(
                   size: canvasSize,
                   painter: HexMapPainter(
@@ -80,7 +84,11 @@ class _GameScreenState extends ConsumerState<GameScreen> {
           Positioned(
             right: 12,
             top: 12,
-            child: Minimap(board: board, units: snapshot.units, unitColor: unitColor),
+            child: Minimap(
+              board: board,
+              units: snapshot.units,
+              unitColor: unitColor,
+            ),
           ),
           if (selectedUnit != null)
             Positioned(
@@ -91,7 +99,9 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                 unit: selectedUnit,
                 phase: snapshot.phase,
                 pendingSteps: _pendingSteps,
-                onStep: (step) => setState(() => _pendingSteps = [..._pendingSteps, step.wireName]),
+                onStep: (step) => setState(
+                  () => _pendingSteps = [..._pendingSteps, step.wireName],
+                ),
                 onClearSteps: () => setState(() => _pendingSteps = []),
                 onConfirmMove: () => _confirmMove(selectedUnit),
                 target: _findUnit(snapshot.units, _targetUnitId),
@@ -111,12 +121,23 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     );
   }
 
-  void _handleTap(TapUpDetails details, Board board, List<Unit> units, HexGeometry geometry) {
-    final hex = geometry.hexAt(details.localPosition, board.width, board.height);
+  void _handleTap(
+    TapUpDetails details,
+    Board board,
+    List<Unit> units,
+    HexGeometry geometry,
+  ) {
+    final hex = geometry.hexAt(
+      details.localPosition,
+      board.width,
+      board.height,
+    );
     if (hex == null) {
       return;
     }
-    final tappedUnit = units.where((u) => u.isDeployed && u.x == hex.$1 && u.y == hex.$2 && !u.destroyed);
+    final tappedUnit = units.where(
+      (u) => u.isDeployed && u.x == hex.$1 && u.y == hex.$2 && !u.destroyed,
+    );
     if (tappedUnit.isEmpty) {
       return;
     }
@@ -144,7 +165,9 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     if (_targetUnitId == null || _selectedWeaponIds.isEmpty) {
       return;
     }
-    ref.read(gameSessionProvider.notifier).sendAttack(
+    ref
+        .read(gameSessionProvider.notifier)
+        .sendAttack(
           entityId: unit.id,
           targetId: _targetUnitId!,
           weaponIds: _selectedWeaponIds.toList(),
@@ -165,14 +188,19 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     });
   }
 
-  void _openUnitList(BuildContext context, List<Unit> units, int? localPlayerId) {
+  void _openUnitList(
+    BuildContext context,
+    List<Unit> units,
+    int? localPlayerId,
+  ) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (context) => UnitListSheet(
         units: units,
         localPlayerId: localPlayerId,
-        onSelect: (unit) => ref.read(selectedUnitIdProvider.notifier).select(unit.id),
+        onSelect: (unit) =>
+            ref.read(selectedUnitIdProvider.notifier).select(unit.id),
       ),
     );
   }
@@ -185,7 +213,8 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         height: MediaQuery.of(context).size.height * 0.6,
         child: ChatPanel(
           chatLog: chatLog,
-          onSend: (text) => ref.read(gameSessionProvider.notifier).sendChat(text),
+          onSend: (text) =>
+              ref.read(gameSessionProvider.notifier).sendChat(text),
         ),
       ),
     );

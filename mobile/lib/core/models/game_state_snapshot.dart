@@ -14,6 +14,8 @@ class GameStateSnapshot {
     required this.players,
     required this.units,
     required this.boards,
+    this.availableBoards = const [],
+    this.selectedBoards = const [],
   });
 
   final String phase;
@@ -22,21 +24,29 @@ class GameStateSnapshot {
   final List<Player> players;
   final List<Unit> units;
   final List<Board> boards;
+  final List<String> availableBoards;
+  final List<String> selectedBoards;
 
-  factory GameStateSnapshot.fromJson(Map<String, dynamic> json) => GameStateSnapshot(
-        phase: json['phase'] as String,
-        round: json['round'] as int,
-        localPlayerId: json['localPlayerId'] as int?,
-        players: (json['players'] as List<dynamic>)
-            .map((p) => Player.fromJson(p as Map<String, dynamic>))
-            .toList(),
-        units: (json['entities'] as List<dynamic>)
-            .map((e) => Unit.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        boards: (json['boards'] as List<dynamic>)
-            .map((b) => Board.fromJson(b as Map<String, dynamic>))
-            .toList(),
-      );
+  factory GameStateSnapshot.fromJson(
+    Map<String, dynamic> json,
+  ) => GameStateSnapshot(
+    phase: json['phase'] as String,
+    round: json['round'] as int,
+    localPlayerId: json['localPlayerId'] as int?,
+    players: (json['players'] as List<dynamic>)
+        .map((p) => Player.fromJson(p as Map<String, dynamic>))
+        .toList(),
+    units: (json['entities'] as List<dynamic>)
+        .map((e) => Unit.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    boards: (json['boards'] as List<dynamic>)
+        .map((b) => Board.fromJson(b as Map<String, dynamic>))
+        .toList(),
+    availableBoards:
+        (json['availableBoards'] as List<dynamic>?)?.cast<String>() ?? const [],
+    selectedBoards:
+        (json['selectedBoards'] as List<dynamic>?)?.cast<String>() ?? const [],
+  );
 
   static const _knownPhases = [
     'LOUNGE',
@@ -52,15 +62,15 @@ class GameStateSnapshot {
   /// raw enum name for phases the MVP doesn't specifically label (see
   /// CLAUDE.md "Bekannter Stand").
   String get phaseLabel => switch (phase) {
-        'LOUNGE' => 'Lobby',
-        'DEPLOYMENT' => 'Deployment',
-        'MOVEMENT' => 'Movement',
-        'FIRING' => 'Firing',
-        'PHYSICAL' => 'Physical',
-        'END' => 'End Phase',
-        'VICTORY' => 'Victory',
-        _ => phase,
-      };
+    'LOUNGE' => 'Lobby',
+    'DEPLOYMENT' => 'Deployment',
+    'MOVEMENT' => 'Movement',
+    'FIRING' => 'Firing',
+    'PHYSICAL' => 'Physical',
+    'END' => 'End Phase',
+    'VICTORY' => 'Victory',
+    _ => phase,
+  };
 
   bool get isKnownGroundPhase => _knownPhases.contains(phase);
 }

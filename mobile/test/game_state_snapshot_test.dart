@@ -10,7 +10,14 @@ const _sampleJson = {
   'round': 3,
   'localPlayerId': 1,
   'players': [
-    {'id': 1, 'name': 'Pilot1', 'team': 1, 'done': false, 'gameMaster': false},
+    {
+      'id': 1,
+      'name': 'Pilot1',
+      'team': 1,
+      'done': false,
+      'gameMaster': false,
+      'bot': false,
+    },
   ],
   'entities': [
     {
@@ -46,6 +53,8 @@ const _sampleJson = {
       ],
     },
   ],
+  'availableBoards': ['AGoAC Base', 'Sample Boards/CraterCityDay1'],
+  'selectedBoards': ['AGoAC Base'],
 };
 
 void main() {
@@ -69,6 +78,23 @@ void main() {
 
     expect(snapshot.boards, hasLength(1));
     expect(snapshot.boards.single.hexes.single.theme, isNull);
+
+    expect(snapshot.availableBoards, [
+      'AGoAC Base',
+      'Sample Boards/CraterCityDay1',
+    ]);
+    expect(snapshot.selectedBoards, ['AGoAC Base']);
+  });
+
+  test('availableBoards/selectedBoards default to empty when absent', () {
+    final json = Map<String, dynamic>.from(_sampleJson)
+      ..remove('availableBoards')
+      ..remove('selectedBoards');
+
+    final snapshot = GameStateSnapshot.fromJson(json);
+
+    expect(snapshot.availableBoards, isEmpty);
+    expect(snapshot.selectedBoards, isEmpty);
   });
 
   test('unit with x = -1 is not deployed', () {
@@ -82,7 +108,8 @@ void main() {
   });
 
   test('unknown phase names are labelled as-is and flagged unknown', () {
-    final json = Map<String, dynamic>.from(_sampleJson)..['phase'] = 'SOME_NEW_PHASE';
+    final json = Map<String, dynamic>.from(_sampleJson)
+      ..['phase'] = 'SOME_NEW_PHASE';
     final snapshot = GameStateSnapshot.fromJson(json);
 
     expect(snapshot.phaseLabel, 'SOME_NEW_PHASE');

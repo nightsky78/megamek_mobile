@@ -50,28 +50,29 @@ class Unit {
   bool get isDeployed => x >= 0 && y >= 0;
 
   double get armorFraction => totalArmor <= 0 ? 0 : armor / totalArmor;
-  double get internalFraction => totalInternal <= 0 ? 0 : internal / totalInternal;
+  double get internalFraction =>
+      totalInternal <= 0 ? 0 : internal / totalInternal;
 
   factory Unit.fromJson(Map<String, dynamic> json) => Unit(
-        id: json['id'] as int,
-        ownerId: json['ownerId'] as int,
-        chassis: json['chassis'] as String,
-        model: json['model'] as String,
-        displayName: json['displayName'] as String,
-        boardId: json['boardId'] as int,
-        x: json['x'] as int,
-        y: json['y'] as int,
-        facing: json['facing'] as int,
-        armor: json['armor'] as int,
-        totalArmor: json['totalArmor'] as int,
-        internal: json['internal'] as int,
-        totalInternal: json['totalInternal'] as int,
-        destroyed: json['destroyed'] as bool,
-        pilotName: json['pilotName'] as String,
-        gunnery: json['gunnery'] as int,
-        pilotHits: json['pilotHits'] as int,
-        weapons: (json['weapons'] as List<dynamic>)
-            .map((w) => Weapon.fromJson(w as Map<String, dynamic>))
-            .toList(),
-      );
+    id: json['id'] as int,
+    ownerId: json['ownerId'] as int,
+    chassis: json['chassis'] as String,
+    model: json['model'] as String,
+    displayName: json['displayName'] as String,
+    boardId: json['boardId'] as int,
+    x: json['x'] as int,
+    y: json['y'] as int,
+    facing: json['facing'] as int,
+    armor: json['armor'] as int,
+    totalArmor: json['totalArmor'] as int,
+    internal: json['internal'] as int,
+    totalInternal: json['totalInternal'] as int,
+    destroyed: json['destroyed'] as bool,
+    pilotName: json['pilotName'] as String,
+    gunnery: json['gunnery'] as int,
+    pilotHits: json['pilotHits'] as int,
+    weapons: (json['weapons'] as List<dynamic>)
+        .map((w) => Weapon.fromJson(w as Map<String, dynamic>))
+        .toList(),
+  );
 }

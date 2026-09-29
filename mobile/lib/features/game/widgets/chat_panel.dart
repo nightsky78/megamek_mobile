@@ -59,7 +59,10 @@ class _ChatPanelState extends State<ChatPanel> {
               Expanded(
                 child: TextField(
                   controller: _controller,
-                  decoration: const InputDecoration(hintText: 'Message...', isDense: true),
+                  decoration: const InputDecoration(
+                    hintText: 'Message...',
+                    isDense: true,
+                  ),
                   onSubmitted: (_) => _send(),
                 ),
               ),

@@ -15,6 +15,35 @@ class AppTheme {
   static const Color armorWarn = Color(0xFFE0A000);
   static const Color armorCritical = Color(0xFFD9463D);
 
+  // Terrain palette (Phase: "full map details" - see hex_map_painter.dart).
+  // Muted/earthy on purpose so unit markers (friendly/hostile above) still pop.
+  static const Color terrainWater = Color(0xFF2D5F7C);
+  static const Color terrainSwamp = Color(0xFF4A5A3A);
+  static const Color terrainMud = Color(0xFF6B5335);
+  static const Color terrainIce = Color(0xFFB8D4E0);
+  static const Color terrainSnow = Color(0xFFE8EEF2);
+  static const Color terrainSand = Color(0xFFC2A878);
+  static const Color terrainTundra = Color(0xFF8A8F7A);
+  static const Color terrainMagma = Color(0xFF8B3A1A);
+  static const Color terrainFields = Color(0xFF7A8F4A);
+  static const Color terrainIndustrial = Color(0xFF5A5A5A);
+  static const Color terrainGeyser = Color(0xFF6FA8A0);
+  static const Color terrainFortified = Color(0xFF4A4A55);
+  static const Color terrainWoods = Color(0xFF2E5C2E);
+  static const Color terrainJungle = Color(0xFF1F4D30);
+  static const Color terrainRough = Color(0xFF6B6355);
+  static const Color terrainRubble = Color(0xFF7A7268);
+  static const Color terrainPavement = Color(0xFF454C52);
+  static const Color terrainRoad = Color(0xFF9A8F6A);
+  static const Color terrainRoadDirt = Color(0xFF8A7550);
+  static const Color terrainBridge = Color(0xFF8B5A2B);
+  static const Color terrainBuildingLight = Color(0xFFA89070);
+  static const Color terrainBuildingMedium = Color(0xFF8A7860);
+  static const Color terrainBuildingHeavy = Color(0xFF6B5D4F);
+  static const Color terrainBuildingHardened = Color(0xFF4A4038);
+  static const Color terrainFire = Color(0xFFE0692A);
+  static const Color terrainSmoke = Color(0xFF9A9A9A);
+
   /// Minimum touch-target side length (Phase 3: "Große Touch-Ziele min. 44x44pt").
   static const double minTouchTarget = 44;
 

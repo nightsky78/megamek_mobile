@@ -6,6 +6,7 @@ class Player {
     required this.team,
     required this.done,
     required this.gameMaster,
+    required this.bot,
   });
 
   final int id;
@@ -13,12 +14,14 @@ class Player {
   final int team;
   final bool done;
   final bool gameMaster;
+  final bool bot;
 
   factory Player.fromJson(Map<String, dynamic> json) => Player(
-        id: json['id'] as int,
-        name: json['name'] as String,
-        team: json['team'] as int,
-        done: json['done'] as bool,
-        gameMaster: json['gameMaster'] as bool,
-      );
+    id: json['id'] as int,
+    name: json['name'] as String,
+    team: json['team'] as int,
+    done: json['done'] as bool,
+    gameMaster: json['gameMaster'] as bool,
+    bot: json['bot'] as bool,
+  );
 }

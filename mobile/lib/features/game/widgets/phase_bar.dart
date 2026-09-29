@@ -28,8 +28,16 @@ class PhaseBar extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       title: Text('${snapshot.phaseLabel} · Round ${snapshot.round}'),
       actions: [
-        IconButton(icon: const Icon(Icons.list_alt), tooltip: 'Units', onPressed: onOpenUnits),
-        IconButton(icon: const Icon(Icons.chat_bubble_outline), tooltip: 'Chat', onPressed: onOpenChat),
+        IconButton(
+          icon: const Icon(Icons.list_alt),
+          tooltip: 'Units',
+          onPressed: onOpenUnits,
+        ),
+        IconButton(
+          icon: const Icon(Icons.chat_bubble_outline),
+          tooltip: 'Chat',
+          onPressed: onOpenChat,
+        ),
         Padding(
           padding: const EdgeInsets.only(right: 8),
           child: Center(

@@ -18,21 +18,47 @@ class HexGeometry {
 
   Offset centerOf(int col, int row) {
     final x = horizontalSpacing * col + size;
-    final y = verticalSpacing * (row + (col.isOdd ? 0.5 : 0.0)) + verticalSpacing / 2;
+    final y =
+        verticalSpacing * (row + (col.isOdd ? 0.5 : 0.0)) + verticalSpacing / 2;
     return Offset(x, y);
   }
 
   Size canvasSizeFor(int boardWidth, int boardHeight) {
     final w = horizontalSpacing * boardWidth + size * 0.5 + size;
-    final h = verticalSpacing * (boardHeight + 0.5) + verticalSpacing / 2 + size / 2;
+    final h =
+        verticalSpacing * (boardHeight + 0.5) + verticalSpacing / 2 + size / 2;
     return Size(w, h);
   }
 
   List<Offset> hexCorners(Offset center) {
     return List.generate(6, (i) {
       final angle = (60 * i) * pi / 180;
-      return Offset(center.dx + size * cos(angle), center.dy + size * sin(angle));
+      return Offset(
+        center.dx + size * cos(angle),
+        center.dy + size * sin(angle),
+      );
     });
+  }
+
+  /// The `hexCorners()` index pair bounding the hexside for MegaMek direction
+  /// [direction] (0=N, clockwise to 5=NW - see `megamek.common.board.Coords`).
+  /// Worked out from `hexCorners`'s ordering (corner 0 at 0°/east, clockwise
+  /// in 60° steps on screen): the flat N/S edges are corner-pairs (4,5) and
+  /// (1,2), giving edge-for-direction-d = corners ((d+4)%6, (d+5)%6).
+  (int, int) edgeCornerIndices(int direction) {
+    final start = (direction + 4) % 6;
+    return (start, (start + 1) % 6);
+  }
+
+  /// Midpoint of the hexside for MegaMek direction [direction] (0=N..5=NW),
+  /// used to draw roads/rivers/bridges from a `TerrainEntry.exits` bitmask.
+  Offset edgeMidpoint(Offset center, int direction) {
+    final corners = hexCorners(center);
+    final (a, b) = edgeCornerIndices(direction);
+    return Offset(
+      (corners[a].dx + corners[b].dx) / 2,
+      (corners[a].dy + corners[b].dy) / 2,
+    );
   }
 
   /// Nearest-center hit test. Brute-force over every hex, which is more than

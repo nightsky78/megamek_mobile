@@ -1,4 +1,5 @@
 import 'game_state_snapshot.dart';
+import 'unit_summary.dart';
 
 /// Discriminator for every message the bridge pushes on `/ws` (see
 /// bridge/README.md "Server → Client messages").
@@ -11,10 +12,16 @@ sealed class BridgeMessage {
       'state.snapshot' => SnapshotMessage(GameStateSnapshot.fromJson(json)),
       'chat.message' => ChatBridgeMessage(json['text'] as String),
       'connection.status' => ConnectionStatusBridgeMessage(
-          status: json['status'] as String,
-          detail: json['detail'] as String?,
-        ),
+        status: json['status'] as String,
+        detail: json['detail'] as String?,
+      ),
       'error' => ErrorBridgeMessage(json['message'] as String),
+      'state.unit_catalog' => UnitCatalogBridgeMessage(
+        units: (json['units'] as List<dynamic>)
+            .map((u) => UnitSummary.fromJson(u as Map<String, dynamic>))
+            .toList(),
+        totalMatches: json['totalMatches'] as int,
+      ),
       _ => UnknownBridgeMessage(type ?? 'null'),
     };
   }
@@ -44,4 +51,13 @@ class ErrorBridgeMessage extends BridgeMessage {
 class UnknownBridgeMessage extends BridgeMessage {
   const UnknownBridgeMessage(this.type);
   final String type;
+}
+
+class UnitCatalogBridgeMessage extends BridgeMessage {
+  const UnitCatalogBridgeMessage({
+    required this.units,
+    required this.totalMatches,
+  });
+  final List<UnitSummary> units;
+  final int totalMatches;
 }

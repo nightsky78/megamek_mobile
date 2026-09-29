@@ -64,10 +64,15 @@ class UnitActionPanel extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                IconButton(icon: const Icon(Icons.close), onPressed: onDeselect),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: onDeselect,
+                ),
               ],
             ),
-            Text('Armor ${unit.armor}/${unit.totalArmor} · Internal ${unit.internal}/${unit.totalInternal}'),
+            Text(
+              'Armor ${unit.armor}/${unit.totalArmor} · Internal ${unit.internal}/${unit.totalInternal}',
+            ),
             const SizedBox(height: 8),
             Flexible(child: _buildBody(context)),
           ],
@@ -94,7 +99,9 @@ class UnitActionPanel extends StatelessWidget {
         onConfirm: onConfirmAttack,
       );
     }
-    return Text('Nothing to do with this unit in the ${phase.toLowerCase()} phase.');
+    return Text(
+      'Nothing to do with this unit in the ${phase.toLowerCase()} phase.',
+    );
   }
 }
 
@@ -121,11 +128,18 @@ class _MoveBuilder extends StatelessWidget {
           spacing: 8,
           runSpacing: 8,
           children: MoveStep.values
-              .map((step) => ElevatedButton(onPressed: () => onStep(step), child: Text(step.label)))
+              .map(
+                (step) => ElevatedButton(
+                  onPressed: () => onStep(step),
+                  child: Text(step.label),
+                ),
+              )
               .toList(),
         ),
         const SizedBox(height: 8),
-        Text(pendingSteps.isEmpty ? 'No steps queued' : pendingSteps.join(' -> ')),
+        Text(
+          pendingSteps.isEmpty ? 'No steps queued' : pendingSteps.join(' -> '),
+        ),
         const SizedBox(height: 8),
         Row(
           children: [
@@ -173,23 +187,33 @@ class _AttackBuilder extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(target == null ? 'Tap an enemy unit to target' : 'Target: ${target!.displayName}'),
+        Text(
+          target == null
+              ? 'Tap an enemy unit to target'
+              : 'Target: ${target!.displayName}',
+        ),
         const SizedBox(height: 4),
         Flexible(
           child: ListView(
             shrinkWrap: true,
             children: unit.weapons
-                .map((weapon) => CheckboxListTile(
-                      dense: true,
-                      value: selectedWeaponIds.contains(weapon.equipmentId),
-                      onChanged: onToggleWeapon == null ? null : (_) => onToggleWeapon!(weapon.equipmentId),
-                      title: Text(weapon.name),
-                    ))
+                .map(
+                  (weapon) => CheckboxListTile(
+                    dense: true,
+                    value: selectedWeaponIds.contains(weapon.equipmentId),
+                    onChanged: onToggleWeapon == null
+                        ? null
+                        : (_) => onToggleWeapon!(weapon.equipmentId),
+                    title: Text(weapon.name),
+                  ),
+                )
                 .toList(),
           ),
         ),
         FilledButton(
-          onPressed: (target != null && selectedWeaponIds.isNotEmpty) ? onConfirm : null,
+          onPressed: (target != null && selectedWeaponIds.isNotEmpty)
+              ? onConfirm
+              : null,
           child: const Text('Fire'),
         ),
       ],

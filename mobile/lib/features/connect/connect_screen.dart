@@ -41,7 +41,11 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(Icons.satellite_alt, size: 64, color: Theme.of(context).colorScheme.primary),
+                  Icon(
+                    Icons.satellite_alt,
+                    size: 64,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     'MegaMek Mobile',
@@ -57,13 +61,19 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
                   const SizedBox(height: 32),
                   TextField(
                     controller: _hostController,
-                    decoration: const InputDecoration(labelText: 'Bridge host', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                      labelText: 'Bridge host',
+                      border: OutlineInputBorder(),
+                    ),
                     enabled: !connecting,
                   ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: _portController,
-                    decoration: const InputDecoration(labelText: 'Bridge port', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                      labelText: 'Bridge port',
+                      border: OutlineInputBorder(),
+                    ),
                     keyboardType: TextInputType.number,
                     enabled: !connecting,
                   ),
@@ -73,7 +83,9 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
                       padding: const EdgeInsets.only(bottom: 16),
                       child: Text(
                         message,
-                        style: TextStyle(color: Theme.of(context).colorScheme.error),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ),

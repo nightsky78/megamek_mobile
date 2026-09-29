@@ -7,7 +7,7 @@ class Weapon {
   final String name;
 
   factory Weapon.fromJson(Map<String, dynamic> json) => Weapon(
-        equipmentId: json['equipmentId'] as int,
-        name: json['name'] as String,
-      );
+    equipmentId: json['equipmentId'] as int,
+    name: json['name'] as String,
+  );
 }
