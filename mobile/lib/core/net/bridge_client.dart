@@ -19,7 +19,11 @@ class BridgeClient {
       ),
       onError: (Object error, StackTrace stackTrace) =>
           _messages.addError(error, stackTrace),
-      onDone: () => _messages.close(),
+      onDone: () {
+        if (!_messages.isClosed) {
+          _messages.close();
+        }
+      },
     );
   }
 
@@ -43,7 +47,13 @@ class BridgeClient {
 
   Future<void> close() async {
     await _subscription.cancel();
-    await _channel.sink.close();
-    await _messages.close();
+    try {
+      await _channel.sink.close();
+    } catch (_) {
+      // Already closed by the peer; nothing left to do.
+    }
+    if (!_messages.isClosed) {
+      await _messages.close();
+    }
   }
 }

@@ -1,6 +1,10 @@
 /// Mirrors `megamekmobile.bridge.dto.TerrainEntryDto`.
 class TerrainEntry {
-  const TerrainEntry({required this.type, required this.level, required this.exits});
+  const TerrainEntry({
+    required this.type,
+    required this.level,
+    required this.exits,
+  });
 
   final int type;
   final int level;
@@ -20,8 +24,13 @@ class TerrainEntry {
 
 /// Mirrors `megamekmobile.bridge.dto.HexDto`.
 class Hex {
-  Hex({required this.x, required this.y, required this.level, this.theme, this.terrain = const []})
-    : byType = {for (final t in terrain) t.type: t};
+  Hex({
+    required this.x,
+    required this.y,
+    required this.level,
+    this.theme,
+    this.terrain = const [],
+  }) : byType = {for (final t in terrain) t.type: t};
 
   final int x;
   final int y;

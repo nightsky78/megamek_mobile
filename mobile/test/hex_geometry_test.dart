@@ -56,16 +56,19 @@ void main() {
       expect(s.dy, greaterThan(center.dy));
     });
 
-    test('every edge midpoint sits at the hex apothem distance from center', () {
-      final center = geometry.centerOf(1, 1);
-      final apothem = geometry.size * sqrt(3) / 2;
-      for (var d = 0; d < 6; d++) {
-        expect(
-          (geometry.edgeMidpoint(center, d) - center).distance,
-          closeTo(apothem, 0.001),
-        );
-      }
-    });
+    test(
+      'every edge midpoint sits at the hex apothem distance from center',
+      () {
+        final center = geometry.centerOf(1, 1);
+        final apothem = geometry.size * sqrt(3) / 2;
+        for (var d = 0; d < 6; d++) {
+          expect(
+            (geometry.edgeMidpoint(center, d) - center).distance,
+            closeTo(apothem, 0.001),
+          );
+        }
+      },
+    );
 
     test('edgeMidpoint matches the average of its two hexCorners', () {
       final center = geometry.centerOf(0, 0);

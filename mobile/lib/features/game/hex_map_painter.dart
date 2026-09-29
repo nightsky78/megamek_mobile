@@ -8,6 +8,32 @@ import '../../theme/app_theme.dart';
 import 'hex_geometry.dart';
 import 'terrain_types.dart';
 
+/// Preview marker for a unit that has not (yet) been deployed/moved there.
+class UnitGhost {
+  const UnitGhost({
+    required this.x,
+    required this.y,
+    required this.facing,
+    required this.color,
+  });
+
+  final int x;
+  final int y;
+  final int facing;
+  final Color color;
+
+  @override
+  bool operator ==(Object other) =>
+      other is UnitGhost &&
+      other.x == x &&
+      other.y == y &&
+      other.facing == facing &&
+      other.color == color;
+
+  @override
+  int get hashCode => Object.hash(x, y, facing, color);
+}
+
 /// Renders one board: terrain hexes (elevation, then any terrain features -
 /// woods, water, roads, buildings, etc., see [TerrainType]), an optional
 /// highlighted set (move-step preview), and unit markers with a facing tick
@@ -20,6 +46,12 @@ class HexMapPainter extends CustomPainter {
     required this.unitColor,
     this.selectedUnitId,
     this.highlightedHexes = const {},
+    this.envelope = const {},
+    this.path = const [],
+    this.ghost,
+    this.targetUnitId,
+    this.actableIds = const {},
+    this.showLabels = true,
   });
 
   final Board board;
@@ -28,6 +60,19 @@ class HexMapPainter extends CustomPainter {
   final Color Function(Unit unit) unitColor;
   final int? selectedUnitId;
   final Set<(int, int)> highlightedHexes;
+
+  /// Reachable hexes for the move builder, keyed by coordinate with the MP
+  /// cost of the cheapest path as value.
+  final Map<(int, int), int> envelope;
+
+  /// Preview path (hex centers, first = start).
+  final List<(int, int)> path;
+
+  /// Semi-transparent marker showing where/how the unit would end up.
+  final UnitGhost? ghost;
+  final int? targetUnitId;
+  final Set<int> actableIds;
+  final bool showLabels;
 
   // Ground-cover tints are mutually exclusive per hex (drawing more than one
   // as a blend muddies a hand-drawn palette) - first match in this priority
@@ -85,12 +130,120 @@ class HexMapPainter extends CustomPainter {
       }
     }
 
+    if (envelope.isNotEmpty) {
+      _paintEnvelope(canvas);
+    }
+    _paintPath(canvas);
+
     for (final unit in units) {
       if (!unit.isDeployed || unit.destroyed) {
         continue;
       }
       _paintUnit(canvas, unit);
     }
+
+    final g = ghost;
+    if (g != null) {
+      _paintGhost(canvas, g);
+    }
+  }
+
+  void _paintEnvelope(Canvas canvas) {
+    final fill = Paint()
+      ..color = const Color(0xFF4CAF50).withValues(alpha: 0.28);
+    final edge = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2
+      ..color = const Color(0xFF8BE28F).withValues(alpha: 0.7);
+    for (final entry in envelope.entries) {
+      final center = geometry.centerOf(entry.key.$1, entry.key.$2);
+      final hexPath = Path()..addPolygon(geometry.hexCorners(center), true);
+      canvas.drawPath(hexPath, fill);
+      canvas.drawPath(hexPath, edge);
+      _paintText(
+        canvas,
+        '${entry.value}',
+        center + Offset(0, -geometry.size * 0.62),
+        fontSize: geometry.size * 0.34,
+        color: Colors.white70,
+      );
+    }
+  }
+
+  void _paintPath(Canvas canvas) {
+    if (path.length < 2) {
+      return;
+    }
+    final line = Path();
+    for (var i = 0; i < path.length; i++) {
+      final c = geometry.centerOf(path[i].$1, path[i].$2);
+      if (i == 0) {
+        line.moveTo(c.dx, c.dy);
+      } else {
+        line.lineTo(c.dx, c.dy);
+      }
+    }
+    canvas.drawPath(
+      line,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4
+        ..strokeJoin = StrokeJoin.round
+        ..strokeCap = StrokeCap.round
+        ..color = AppTheme.accent,
+    );
+    final end = geometry.centerOf(path.last.$1, path.last.$2);
+    canvas.drawCircle(end, 5, Paint()..color = AppTheme.accent);
+  }
+
+  void _paintGhost(Canvas canvas, UnitGhost ghost) {
+    final center = geometry.centerOf(ghost.x, ghost.y);
+    final radius = geometry.size * 0.5;
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()..color = ghost.color.withValues(alpha: 0.55),
+    );
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..color = Colors.white,
+    );
+    final angle = (ghost.facing * 60 - 90) * pi / 180;
+    canvas.drawLine(
+      center,
+      center + Offset(cos(angle), sin(angle)) * (radius + 8),
+      Paint()
+        ..strokeWidth = 3
+        ..strokeCap = StrokeCap.round
+        ..color = Colors.white,
+    );
+  }
+
+  void _paintText(
+    Canvas canvas,
+    String text,
+    Offset center, {
+    required double fontSize,
+    required Color color,
+    FontWeight weight = FontWeight.w600,
+  }) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          color: color,
+          fontSize: fontSize,
+          fontWeight: weight,
+          shadows: const [Shadow(blurRadius: 2, color: Colors.black)],
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, center - Offset(tp.width / 2, tp.height / 2));
   }
 
   void _paintGroundCoverTint(Canvas canvas, Path path, Hex hex, Offset center) {
@@ -104,7 +257,10 @@ class HexMapPainter extends CustomPainter {
     if (chosen == null) {
       return;
     }
-    canvas.drawPath(path, Paint()..color = _groundCoverColor(chosen).withValues(alpha: 0.6));
+    canvas.drawPath(
+      path,
+      Paint()..color = _groundCoverColor(chosen).withValues(alpha: 0.6),
+    );
 
     final rapids = hex.byType[TerrainType.rapids.wireType];
     if (chosen == TerrainType.water && rapids != null) {
@@ -113,20 +269,20 @@ class HexMapPainter extends CustomPainter {
   }
 
   Color _groundCoverColor(TerrainType type) => switch (type) {
-        TerrainType.water => AppTheme.terrainWater,
-        TerrainType.swamp => AppTheme.terrainSwamp,
-        TerrainType.mud => AppTheme.terrainMud,
-        TerrainType.ice => AppTheme.terrainIce,
-        TerrainType.snow => AppTheme.terrainSnow,
-        TerrainType.magma => AppTheme.terrainMagma,
-        TerrainType.sand => AppTheme.terrainSand,
-        TerrainType.tundra => AppTheme.terrainTundra,
-        TerrainType.fields => AppTheme.terrainFields,
-        TerrainType.industrial => AppTheme.terrainIndustrial,
-        TerrainType.geyser => AppTheme.terrainGeyser,
-        TerrainType.fortified => AppTheme.terrainFortified,
-        _ => Colors.transparent,
-      };
+    TerrainType.water => AppTheme.terrainWater,
+    TerrainType.swamp => AppTheme.terrainSwamp,
+    TerrainType.mud => AppTheme.terrainMud,
+    TerrainType.ice => AppTheme.terrainIce,
+    TerrainType.snow => AppTheme.terrainSnow,
+    TerrainType.magma => AppTheme.terrainMagma,
+    TerrainType.sand => AppTheme.terrainSand,
+    TerrainType.tundra => AppTheme.terrainTundra,
+    TerrainType.fields => AppTheme.terrainFields,
+    TerrainType.industrial => AppTheme.terrainIndustrial,
+    TerrainType.geyser => AppTheme.terrainGeyser,
+    TerrainType.fortified => AppTheme.terrainFortified,
+    _ => Colors.transparent,
+  };
 
   void _paintRapids(Canvas canvas, Hex hex, Offset center, int level) {
     final paint = Paint()
@@ -150,7 +306,9 @@ class HexMapPainter extends CustomPainter {
     if (entry == null) {
       return;
     }
-    final color = jungle != null ? AppTheme.terrainJungle : AppTheme.terrainWoods;
+    final color = jungle != null
+        ? AppTheme.terrainJungle
+        : AppTheme.terrainWoods;
     const counts = {1: 5, 2: 8, 3: 11};
     const radii = {1: 2.0, 2: 2.5, 3: 3.0};
     final level = entry.level.clamp(1, 3);
@@ -189,12 +347,16 @@ class HexMapPainter extends CustomPainter {
   }
 
   void _paintRubbleMarks(Canvas canvas, Hex hex, Offset center, int count) {
-    final paint = Paint()..color = AppTheme.terrainRubble.withValues(alpha: 0.85);
+    final paint = Paint()
+      ..color = AppTheme.terrainRubble.withValues(alpha: 0.85);
     final rnd = _seededRandom(hex, 3);
     for (var i = 0; i < count; i++) {
       final pos = _randomPointInHex(rnd, center);
       final side = 2.0 + rnd.nextDouble() * 2.0;
-      canvas.drawRect(Rect.fromCenter(center: pos, width: side, height: side), paint);
+      canvas.drawRect(
+        Rect.fromCenter(center: pos, width: side, height: side),
+        paint,
+      );
     }
   }
 
@@ -202,7 +364,10 @@ class HexMapPainter extends CustomPainter {
     if (!hex.byType.containsKey(TerrainType.pavement.wireType)) {
       return;
     }
-    canvas.drawPath(path, Paint()..color = AppTheme.terrainPavement.withValues(alpha: 0.9));
+    canvas.drawPath(
+      path,
+      Paint()..color = AppTheme.terrainPavement.withValues(alpha: 0.9),
+    );
   }
 
   void _paintLinear(Canvas canvas, Hex hex, Offset center) {
@@ -222,7 +387,9 @@ class HexMapPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = isDirtOrGravel ? 2.5 : 4.0
       ..strokeCap = StrokeCap.round
-      ..color = isDirtOrGravel ? AppTheme.terrainRoadDirt : AppTheme.terrainRoad;
+      ..color = isDirtOrGravel
+          ? AppTheme.terrainRoadDirt
+          : AppTheme.terrainRoad;
     _drawSpokesOrDot(canvas, center, road, paint);
   }
 
@@ -256,16 +423,29 @@ class HexMapPainter extends CustomPainter {
   /// that hexside's midpoint - a through-road reads as one continuous line, a
   /// turn as a bent line, a dead-end as a single spoke. An isolated stub with
   /// no exits still gets a small dot so it isn't invisible.
-  void _drawSpokesOrDot(Canvas canvas, Offset center, TerrainEntry entry, Paint paint) {
+  void _drawSpokesOrDot(
+    Canvas canvas,
+    Offset center,
+    TerrainEntry entry,
+    Paint paint,
+  ) {
     var drewAny = false;
     for (var direction = 0; direction < 6; direction++) {
       if (entry.hasExit(direction)) {
-        canvas.drawLine(center, geometry.edgeMidpoint(center, direction), paint);
+        canvas.drawLine(
+          center,
+          geometry.edgeMidpoint(center, direction),
+          paint,
+        );
         drewAny = true;
       }
     }
     if (!drewAny) {
-      canvas.drawCircle(center, paint.strokeWidth * 0.8, Paint()..color = paint.color);
+      canvas.drawCircle(
+        center,
+        paint.strokeWidth * 0.8,
+        Paint()..color = paint.color,
+      );
     }
   }
 
@@ -303,7 +483,11 @@ class HexMapPainter extends CustomPainter {
         ..color = Colors.black38;
       for (var i = 1; i < floors; i++) {
         final y = rect.top + (rect.height / floors) * i;
-        canvas.drawLine(Offset(rect.left + 2, y), Offset(rect.right - 2, y), floorPaint);
+        canvas.drawLine(
+          Offset(rect.left + 2, y),
+          Offset(rect.right - 2, y),
+          floorPaint,
+        );
       }
     }
   }
@@ -312,19 +496,26 @@ class HexMapPainter extends CustomPainter {
     final fire = hex.byType[TerrainType.fire.wireType];
     if (fire != null) {
       final alpha = 0.35 + (fire.level.clamp(1, 4) - 1) * 0.12;
-      canvas.drawPath(path, Paint()..color = AppTheme.terrainFire.withValues(alpha: alpha));
+      canvas.drawPath(
+        path,
+        Paint()..color = AppTheme.terrainFire.withValues(alpha: alpha),
+      );
     }
     final smoke = hex.byType[TerrainType.smoke.wireType];
     if (smoke != null) {
       final alpha = 0.3 + (smoke.level.clamp(1, 4) - 1) * 0.1;
-      canvas.drawPath(path, Paint()..color = AppTheme.terrainSmoke.withValues(alpha: alpha));
+      canvas.drawPath(
+        path,
+        Paint()..color = AppTheme.terrainSmoke.withValues(alpha: alpha),
+      );
     }
   }
 
   /// Stable per-hex pseudo-random source: same hex + same [salt] always
   /// produces the same scatter pattern, so terrain doesn't visibly "jitter"
   /// between repaints (pan/zoom, snapshot updates).
-  Random _seededRandom(Hex hex, int salt) => Random(hex.x * 7919 + hex.y * 104729 + salt);
+  Random _seededRandom(Hex hex, int salt) =>
+      Random(hex.x * 7919 + hex.y * 104729 + salt);
 
   Offset _randomPointInHex(Random rnd, Offset center) {
     final angle = rnd.nextDouble() * 2 * pi;
@@ -363,6 +554,71 @@ class HexMapPainter extends CustomPainter {
     );
 
     _paintArmorBar(canvas, center, radius, unit.armorFraction);
+
+    if (actableIds.contains(unit.id) && !isSelected) {
+      canvas.drawCircle(
+        center,
+        radius + 4,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..color = AppTheme.accent,
+      );
+    }
+    if (unit.id == targetUnitId) {
+      final targetPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..color = Colors.redAccent;
+      canvas.drawCircle(center, radius + 6, targetPaint);
+      canvas.drawLine(
+        center.translate(-radius - 10, 0),
+        center.translate(-radius + 2, 0),
+        targetPaint,
+      );
+      canvas.drawLine(
+        center.translate(radius - 2, 0),
+        center.translate(radius + 10, 0),
+        targetPaint,
+      );
+    }
+
+    if (showLabels) {
+      final name = unit.chassis.length > 9
+          ? unit.chassis.substring(0, 9)
+          : unit.chassis;
+      _paintText(
+        canvas,
+        name,
+        center.translate(0, -radius - 8),
+        fontSize: geometry.size * 0.36,
+        color: Colors.white,
+      );
+    }
+    final flags = <String>[if (unit.prone) 'PRONE', if (unit.shutDown) 'OFF'];
+    if (flags.isNotEmpty) {
+      _paintText(
+        canvas,
+        flags.join(' '),
+        center.translate(0, radius + 20),
+        fontSize: geometry.size * 0.32,
+        color: Colors.orangeAccent,
+        weight: FontWeight.bold,
+      );
+    }
+    if (unit.heatCapacity > 0 && unit.heat > 0) {
+      final f = (unit.heat / (unit.heatCapacity + 10)).clamp(0.0, 1.0);
+      final x = center.dx + radius + 4;
+      final bottom = center.dy + radius;
+      canvas.drawRect(
+        Rect.fromLTWH(x, bottom - 2 * radius, 3, 2 * radius),
+        Paint()..color = Colors.black54,
+      );
+      canvas.drawRect(
+        Rect.fromLTWH(x, bottom - 2 * radius * f, 3, 2 * radius * f),
+        Paint()..color = Colors.deepOrangeAccent,
+      );
+    }
   }
 
   void _paintArmorBar(
@@ -412,7 +668,12 @@ class HexMapPainter extends CustomPainter {
     return oldDelegate.board != board ||
         oldDelegate.units != units ||
         oldDelegate.selectedUnitId != selectedUnitId ||
-        oldDelegate.highlightedHexes != highlightedHexes;
+        oldDelegate.highlightedHexes != highlightedHexes ||
+        oldDelegate.envelope != envelope ||
+        oldDelegate.path != path ||
+        oldDelegate.ghost != ghost ||
+        oldDelegate.targetUnitId != targetUnitId ||
+        oldDelegate.actableIds != actableIds;
   }
 }
 

@@ -7,6 +7,7 @@ class Player {
     required this.done,
     required this.gameMaster,
     required this.bot,
+    this.bv = 0,
   });
 
   final int id;
@@ -16,6 +17,9 @@ class Player {
   final bool gameMaster;
   final bool bot;
 
+  /// Total battle value of this player's roster.
+  final int bv;
+
   factory Player.fromJson(Map<String, dynamic> json) => Player(
     id: json['id'] as int,
     name: json['name'] as String,
@@ -23,5 +27,6 @@ class Player {
     done: json['done'] as bool,
     gameMaster: json['gameMaster'] as bool,
     bot: json['bot'] as bool,
+    bv: json['bv'] as int? ?? 0,
   );
 }

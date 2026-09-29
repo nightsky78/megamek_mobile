@@ -1,4 +1,5 @@
 import 'game_state_snapshot.dart';
+import 'turn_models.dart';
 import 'unit_summary.dart';
 
 /// Discriminator for every message the bridge pushes on `/ws` (see
@@ -21,6 +22,19 @@ sealed class BridgeMessage {
             .map((u) => UnitSummary.fromJson(u as Map<String, dynamic>))
             .toList(),
         totalMatches: json['totalMatches'] as int,
+      ),
+      'state.report' => ReportBridgeMessage(ReportEntry.fromJson(json)),
+      'state.deploy_options' => DeployOptionsBridgeMessage(
+        DeployOptions.fromJson(json),
+      ),
+      'state.move_options' => MoveOptionsBridgeMessage(
+        MoveOptions.fromJson(json),
+      ),
+      'state.move_preview' => MovePreviewBridgeMessage(
+        MovePreview.fromJson(json),
+      ),
+      'state.attack_options' => AttackOptionsBridgeMessage(
+        AttackOptions.fromJson(json),
       ),
       _ => UnknownBridgeMessage(type ?? 'null'),
     };
@@ -60,4 +74,29 @@ class UnitCatalogBridgeMessage extends BridgeMessage {
   });
   final List<UnitSummary> units;
   final int totalMatches;
+}
+
+class ReportBridgeMessage extends BridgeMessage {
+  const ReportBridgeMessage(this.entry);
+  final ReportEntry entry;
+}
+
+class DeployOptionsBridgeMessage extends BridgeMessage {
+  const DeployOptionsBridgeMessage(this.options);
+  final DeployOptions options;
+}
+
+class MoveOptionsBridgeMessage extends BridgeMessage {
+  const MoveOptionsBridgeMessage(this.options);
+  final MoveOptions options;
+}
+
+class MovePreviewBridgeMessage extends BridgeMessage {
+  const MovePreviewBridgeMessage(this.preview);
+  final MovePreview preview;
+}
+
+class AttackOptionsBridgeMessage extends BridgeMessage {
+  const AttackOptionsBridgeMessage(this.options);
+  final AttackOptions options;
 }

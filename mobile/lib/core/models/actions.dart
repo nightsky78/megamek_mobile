@@ -36,9 +36,13 @@ class Actions {
     'unitRef': unitRef,
   };
 
-  static Map<String, dynamic> addBot({required String botName}) => {
+  static Map<String, dynamic> addBot({
+    required String botName,
+    String? difficulty,
+  }) => {
     'type': 'action.add_bot',
     'botName': botName,
+    'difficulty': ?difficulty,
   };
 
   static Map<String, dynamic> addBotUnit({
@@ -58,8 +62,18 @@ class Actions {
     double? minTons,
     double? maxTons,
     int? limit,
+    int? minYear,
+    int? maxYear,
+    int? minBv,
+    int? maxBv,
+    String? techBase,
   }) => {
     'type': 'action.unit_catalog_search',
+    'minYear': ?minYear,
+    'maxYear': ?maxYear,
+    'minBv': ?minBv,
+    'maxBv': ?maxBv,
+    'techBase': ?techBase,
     'text': ?text,
     'unitType': ?unitType,
     'clanOnly': ?clanOnly,
@@ -67,19 +81,107 @@ class Actions {
     'maxTons': ?maxTons,
     'limit': ?limit,
   };
-}
 
-/// The move-step vocabulary the bridge understands, in the order the MVP's
-/// move builder UI offers them (see docs/protocol-notes.md).
-enum MoveStep {
-  forwards('FORWARDS', 'Forward'),
-  backwards('BACKWARDS', 'Backward'),
-  turnLeft('TURN_LEFT', 'Turn left'),
-  turnRight('TURN_RIGHT', 'Turn right'),
-  lateralLeft('LATERAL_LEFT', 'Side-step left'),
-  lateralRight('LATERAL_RIGHT', 'Side-step right');
+  static Map<String, dynamic> ping() => {'type': 'action.ping'};
 
-  const MoveStep(this.wireName, this.label);
-  final String wireName;
-  final String label;
+  static Map<String, dynamic> deployOptions(int entityId) => {
+    'type': 'action.deploy_options',
+    'entityId': entityId,
+  };
+
+  static Map<String, dynamic> deploy({
+    required int entityId,
+    required int x,
+    required int y,
+    required int facing,
+  }) => {
+    'type': 'action.deploy',
+    'entityId': entityId,
+    'x': x,
+    'y': y,
+    'facing': facing,
+  };
+
+  static Map<String, dynamic> moveOptions({
+    required int entityId,
+    required String mode,
+  }) => {'type': 'action.move_options', 'entityId': entityId, 'mode': mode};
+
+  static Map<String, dynamic> movePreview({
+    required int entityId,
+    required String mode,
+    int? x,
+    int? y,
+    int? facing,
+  }) => {
+    'type': 'action.move_preview',
+    'entityId': entityId,
+    'mode': mode,
+    'x': ?x,
+    'y': ?y,
+    'facing': ?facing,
+  };
+
+  /// Omit [x]/[y] to stand still (optionally only turning to [facing]).
+  static Map<String, dynamic> moveTo({
+    required int entityId,
+    required String mode,
+    int? x,
+    int? y,
+    int? facing,
+  }) => {
+    'type': 'action.move_to',
+    'entityId': entityId,
+    'mode': mode,
+    'x': ?x,
+    'y': ?y,
+    'facing': ?facing,
+  };
+
+  static Map<String, dynamic> attackOptions({
+    required int entityId,
+    required int targetId,
+    bool physical = false,
+  }) => {
+    'type': physical ? 'action.physical_options' : 'action.attack_options',
+    'entityId': entityId,
+    'targetId': targetId,
+  };
+
+  /// Omit [targetId]/[kind] to skip the physical attack phase for this unit.
+  static Map<String, dynamic> physical({
+    required int entityId,
+    int? targetId,
+    String? kind,
+  }) => {
+    'type': 'action.physical',
+    'entityId': entityId,
+    'targetId': ?targetId,
+    'kind': ?kind,
+  };
+
+  static Map<String, dynamic> removeUnit(int entityId) => {
+    'type': 'action.remove_unit',
+    'entityId': entityId,
+  };
+
+  static Map<String, dynamic> setPilot({
+    required int entityId,
+    int? gunnery,
+    int? piloting,
+  }) => {
+    'type': 'action.set_pilot',
+    'entityId': entityId,
+    'gunnery': ?gunnery,
+    'piloting': ?piloting,
+  };
+
+  /// [botName] null = the local player.
+  static Map<String, dynamic> setTeam({required int team, String? botName}) => {
+    'type': 'action.set_team',
+    'team': team,
+    'botName': ?botName,
+  };
+
+  static Map<String, dynamic> newGame() => {'type': 'action.new_game'};
 }

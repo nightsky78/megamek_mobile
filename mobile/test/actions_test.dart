@@ -98,15 +98,81 @@ void main() {
     );
   });
 
-  test(
-    'MoveStep wire names match megamek.common.enums.MoveStepType constants',
-    () {
-      expect(MoveStep.forwards.wireName, 'FORWARDS');
-      expect(MoveStep.backwards.wireName, 'BACKWARDS');
-      expect(MoveStep.turnLeft.wireName, 'TURN_LEFT');
-      expect(MoveStep.turnRight.wireName, 'TURN_RIGHT');
-      expect(MoveStep.lateralLeft.wireName, 'LATERAL_LEFT');
-      expect(MoveStep.lateralRight.wireName, 'LATERAL_RIGHT');
-    },
-  );
+  test('Actions.addBot carries the difficulty when given', () {
+    expect(Actions.addBot(botName: 'B', difficulty: 'hard'), {
+      'type': 'action.add_bot',
+      'botName': 'B',
+      'difficulty': 'hard',
+    });
+  });
+
+  test('Actions.deploy and moveTo match the bridge shape', () {
+    expect(Actions.deploy(entityId: 1, x: 3, y: 4, facing: 2), {
+      'type': 'action.deploy',
+      'entityId': 1,
+      'x': 3,
+      'y': 4,
+      'facing': 2,
+    });
+    expect(Actions.moveTo(entityId: 1, mode: 'RUN', x: 5, y: 6, facing: 1), {
+      'type': 'action.move_to',
+      'entityId': 1,
+      'mode': 'RUN',
+      'x': 5,
+      'y': 6,
+      'facing': 1,
+    });
+  });
+
+  test('Actions.moveTo without a destination means stand still', () {
+    expect(Actions.moveTo(entityId: 1, mode: 'WALK'), {
+      'type': 'action.move_to',
+      'entityId': 1,
+      'mode': 'WALK',
+    });
+  });
+
+  test('Actions.attackOptions picks the physical or weapon request', () {
+    expect(
+      Actions.attackOptions(entityId: 1, targetId: 2)['type'],
+      'action.attack_options',
+    );
+    expect(
+      Actions.attackOptions(entityId: 1, targetId: 2, physical: true)['type'],
+      'action.physical_options',
+    );
+  });
+
+  test('Actions.physical without target skips', () {
+    expect(Actions.physical(entityId: 1), {
+      'type': 'action.physical',
+      'entityId': 1,
+    });
+    expect(Actions.physical(entityId: 1, targetId: 2, kind: 'KICK'), {
+      'type': 'action.physical',
+      'entityId': 1,
+      'targetId': 2,
+      'kind': 'KICK',
+    });
+  });
+
+  test('force management actions', () {
+    expect(Actions.removeUnit(7), {
+      'type': 'action.remove_unit',
+      'entityId': 7,
+    });
+    expect(Actions.setPilot(entityId: 7, gunnery: 3, piloting: 4), {
+      'type': 'action.set_pilot',
+      'entityId': 7,
+      'gunnery': 3,
+      'piloting': 4,
+    });
+    expect(Actions.setTeam(team: 2, botName: 'Bot1'), {
+      'type': 'action.set_team',
+      'team': 2,
+      'botName': 'Bot1',
+    });
+    expect(Actions.newGame(), {'type': 'action.new_game'});
+    expect(Actions.ping(), {'type': 'action.ping'});
+  });
 }

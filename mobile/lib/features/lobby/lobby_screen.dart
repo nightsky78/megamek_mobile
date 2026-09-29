@@ -7,7 +7,7 @@ import '../../state/game_session.dart';
 import '../game/widgets/chat_panel.dart';
 import 'widgets/bot_setup_panel.dart';
 import 'widgets/map_select_panel.dart';
-import 'widgets/mech_catalog_sheet.dart';
+import 'widgets/force_panel.dart';
 
 /// Portrait lobby screen (Phase 3: "Portrait für Lobby/Menüs"): who's here,
 /// who's ready, and chat before the game starts. There is no "create/browse
@@ -57,7 +57,7 @@ class LobbyScreen extends ConsumerWidget {
                 session: session,
                 snapshot: snapshot,
               ),
-              LobbySetupStep.roster => _RosterBody(snapshot: snapshot),
+              LobbySetupStep.roster => RosterPanel(snapshot: snapshot),
               LobbySetupStep.bots => BotSetupPanel(snapshot: snapshot),
               LobbySetupStep.map => MapSelectPanel(snapshot: snapshot),
             },
@@ -89,8 +89,10 @@ class _OverviewBody extends ConsumerWidget {
           child: ListView.builder(
             padding: const EdgeInsets.all(12),
             itemCount: snapshot.players.length,
-            itemBuilder: (context, index) =>
-                _PlayerTile(player: snapshot.players[index]),
+            itemBuilder: (context, index) => _PlayerTile(
+              player: snapshot.players[index],
+              isLocal: snapshot.players[index].id == snapshot.localPlayerId,
+            ),
           ),
         ),
         SizedBox(
@@ -150,72 +152,50 @@ class _OverviewBody extends ConsumerWidget {
   }
 }
 
-class _RosterBody extends ConsumerWidget {
-  const _RosterBody({required this.snapshot});
+class _PlayerTile extends ConsumerWidget {
+  const _PlayerTile({required this.player, required this.isLocal});
 
-  final GameStateSnapshot snapshot;
+  final Player player;
+  final bool isLocal;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final myUnits = snapshot.units
-        .where((u) => u.ownerId == snapshot.localPlayerId)
-        .toList();
-
-    return Column(
-      children: [
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: myUnits.length,
-            itemBuilder: (context, index) {
-              final unit = myUnits[index];
-              return Card(
-                child: ListTile(
-                  title: Text(unit.displayName),
-                  subtitle: Text('Armor ${unit.armor}/${unit.totalArmor}'),
-                ),
-              );
-            },
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: FilledButton.icon(
-            icon: const Icon(Icons.add),
-            label: const Text('Add Mech'),
-            onPressed: () => showModalBottomSheet<void>(
-              context: context,
-              isScrollControlled: true,
-              builder: (context) => const MechCatalogSheet(),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PlayerTile extends StatelessWidget {
-  const _PlayerTile({required this.player});
-
-  final Player player;
-
-  @override
-  Widget build(BuildContext context) {
     return Card(
       child: ListTile(
         leading: CircleAvatar(
           child: player.bot
               ? const Icon(Icons.smart_toy)
-              : Text(player.team.toString()),
+              : const Icon(Icons.person),
         ),
-        title: Text(player.name),
+        title: Text(player.name + (isLocal ? ' (you)' : '')),
         subtitle: Text(
-          'Team ${player.team}${player.gameMaster ? " · Game Master" : ""}',
+          'Team ${player.team} - BV ${player.bv}'
+          '${player.gameMaster ? " - Game Master" : ""}',
         ),
-        trailing: Icon(
-          player.done ? Icons.check_circle : Icons.hourglass_empty,
-          color: player.done ? Colors.green : Colors.grey,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isLocal || player.bot)
+              PopupMenuButton<int>(
+                key: Key('team-${player.name}'),
+                tooltip: 'Change team',
+                icon: const Icon(Icons.groups),
+                onSelected: (team) => ref
+                    .read(gameSessionProvider.notifier)
+                    .sendSetTeam(
+                      team: team,
+                      botName: player.bot ? player.name : null,
+                    ),
+                itemBuilder: (context) => [
+                  for (var team = 1; team <= 4; team++)
+                    PopupMenuItem(value: team, child: Text('Team $team')),
+                ],
+              ),
+            Icon(
+              player.done ? Icons.check_circle : Icons.hourglass_empty,
+              color: player.done ? Colors.green : Colors.grey,
+            ),
+          ],
         ),
       ),
     );
